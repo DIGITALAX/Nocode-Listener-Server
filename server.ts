@@ -1,14 +1,3 @@
-/* 
-
-    // server instantiates a new sdk with a function with the details passed to it 
-    // it with a pkp signs the data associated with the wallet address on-chain and only the wallet address assigned can unencrypt the data of the details of the circuit
-
-    // the circuit runs and when there is a new log generated i.e. there is a listener event or something created for each circuit it then encrypts that log and the pkp signs it on-chain to the smart contract adding it to the users log of information 
-
-    2. the front end application then reads from the graphql database to retrieve up to date logs and information about the circuits performance. 
-
-*/
-
 import express, { Request, Response } from "express";
 import {
   Circuit,
@@ -59,16 +48,16 @@ app.post("/start", async (req: Request, res: Response) => {
     return;
   }
 
+  // Listen in on all logs
+  newCircuit.on("log", (logEntry: ILogEntry) => {
+    saveLogToSubgraph(logEntry);
+  });
+
   // Start the circuit
   await newCircuit.start({
     publicKey: results?.publicKey,
     ipfsCID: results?.ipfsCID,
     authSignature,
-  });
-
-  // Listen in on all logs
-  newCircuit.on("log", (logEntry: ILogEntry) => {
-    saveLogToSubgraph(logEntry);
   });
 });
 
@@ -131,6 +120,7 @@ const saveCircuitToSubgraph = async (
 };
 
 const saveLogToSubgraph = async (logEntry: ILogEntry) => {
+  // if log entry is a critical error then call straight away otherwise batch logs in groups of 10 and sign to the contract
   try {
   } catch (err: any) {
     console.error(err.message);
