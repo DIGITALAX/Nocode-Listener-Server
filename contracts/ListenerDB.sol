@@ -13,7 +13,8 @@ contract ListenerDB {
 
     struct Circuit {
         string _id;
-        string _encryptedInformation;
+        string _circuitInformation;
+        string _status;
         address _instantiatorAddress;
     }
 
@@ -33,9 +34,8 @@ contract ListenerDB {
         _;
     }
 
-    // address to encrypted Circuit and Log strings
-    mapping(address => mapping(string => Circuit[]))
-        private _addressIdToCircuit;
+    // address to Circuit and Log strings
+    mapping(address => mapping(string => Circuit)) private _addressIdToCircuit;
     mapping(address => mapping(string => string[])) private _addressIdToLogs;
 
     event PKPSet(
@@ -46,13 +46,23 @@ contract ListenerDB {
 
     event LogAdded(
         string indexed circuitId,
-        string stringifiedEncryptedLog,
+        string[] stringifiedLogs,
         address instantiatorAddress
     );
 
     event CircuitAdded(
         string indexed circuitId,
-        string encryptedCircuitInformation,
+        string circuitInformation,
+        address instantiatorAddress
+    );
+
+    event CircuitInterrupted(
+        string indexed circuitId,
+        address instantiatorAddress
+    );
+
+    event CircuitCompleted(
+        string indexed circuitId,
         address instantiatorAddress
     );
 
@@ -75,21 +85,22 @@ contract ListenerDB {
     }
 
     function addCircuitOnChain(
-        string memory _encryptedCircuitInformation,
-        address _instantiatorAddress,
-        string memory _circuitId
+        string memory _circuitId,
+        string memory _circuitInformation,
+        address _instantiatorAddress
     ) external onlyPKP(msg.sender) {
         Circuit memory newCircuit = Circuit({
             _id: _circuitId,
-            _encryptedInformation: _encryptedCircuitInformation,
+            _circuitInformation: _circuitInformation,
+            _status: "running",
             _instantiatorAddress: _instantiatorAddress
         });
 
-        _addressIdToCircuit[_instantiatorAddress][_circuitId].push(newCircuit);
+        _addressIdToCircuit[_instantiatorAddress][_circuitId] = (newCircuit);
 
         emit CircuitAdded(
             _circuitId,
-            _encryptedCircuitInformation,
+            _circuitInformation,
             _instantiatorAddress
         );
     }
@@ -97,17 +108,35 @@ contract ListenerDB {
     function addLogToCircuit(
         address _instantiatorAddress,
         string memory _circuitId,
-        string memory _stringifiedEncryptedLog
+        string[] memory _stringifiedLogs
     ) external onlyPKP(msg.sender) {
-        _addressIdToLogs[_instantiatorAddress][_circuitId].push(
-            _stringifiedEncryptedLog
-        );
+        for (uint256 i; i < _stringifiedLogs.length; i++) {
+            _addressIdToLogs[_instantiatorAddress][_circuitId].push(
+                _stringifiedLogs[i]
+            );
+        }
 
-        emit LogAdded(
-            _circuitId,
-            _stringifiedEncryptedLog,
-            _instantiatorAddress
-        );
+        emit LogAdded(_circuitId, _stringifiedLogs, _instantiatorAddress);
+    }
+
+    function interruptCircuit(
+        string memory _circuitId,
+        address _instantiatorAddress
+    ) external onlyPKP(msg.sender) {
+        _addressIdToCircuit[_instantiatorAddress][_circuitId]
+            ._status = "interrupted";
+
+        emit CircuitInterrupted(_circuitId, _instantiatorAddress);
+    }
+
+    function completeCircuit(
+        string memory _circuitId,
+        address _instantiatorAddress
+    ) external onlyPKP(msg.sender) {
+        _addressIdToCircuit[_instantiatorAddress][_circuitId]
+            ._status = "completed";
+
+        emit CircuitCompleted(_circuitId, _instantiatorAddress);
     }
 
     function getPKPAssignedAddress() public view returns (address) {
@@ -124,5 +153,29 @@ contract ListenerDB {
 
     function getListenerAccessControl() public view returns (address) {
         return (address(_listenerAccessControl));
+    }
+
+    function getCircuitStatus(
+        string memory _circuitId,
+        address _instantiatorAddress
+    ) public view returns (string memory) {
+        return (_addressIdToCircuit[_instantiatorAddress][_circuitId]._status);
+    }
+
+    function getCircuitInformation(
+        string memory _circuitId,
+        address _instantiatorAddress
+    ) public view returns (string memory) {
+        return (
+            _addressIdToCircuit[_instantiatorAddress][_circuitId]
+                ._circuitInformation
+        );
+    }
+
+    function getCircuitLogs(
+        string memory _circuitId,
+        address _instantiatorAddress
+    ) public view returns (string[] memory) {
+        return (_addressIdToLogs[_instantiatorAddress][_circuitId]);
     }
 }
