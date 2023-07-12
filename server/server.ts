@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { NextFunction, Request, Response } from "express";
 import * as LitJsSdk from "@lit-protocol/lit-node-client";
 import bs58 from "bs58";
 import {
@@ -47,6 +47,36 @@ const client = create({
 
 app.use(express.json());
 
+// Auth validation
+const apiKeyValidationMiddleware = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const apiKey = req.headers["x-api-key"];
+  if (!apiKey || apiKey !== process.env.SERVER_API_KEY) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  next();
+};
+
+app.use(apiKeyValidationMiddleware);
+
+wss.on("connection", (socket) => {
+  console.log("WebSocket connection established");
+
+  clientSocket = socket;
+
+  socket.on("message", (message) => {
+    console.log("Received message from client:", message);
+  });
+
+  socket.on("close", () => {
+    console.log("WebSocket connection closed");
+    clientSocket = null;
+  });
+});
+
 app.post("/instantiate", async (req: Request, res: Response) => {
   let id: string | undefined;
   try {
@@ -57,7 +87,7 @@ app.post("/instantiate", async (req: Request, res: Response) => {
       contractActions,
       conditionalLogic,
       executionConstraints,
-    } = req.body;
+    } = JSON.parse(req.body);
 
     // instantiate the new circuit
     const newCircuit = new Circuit(provider, circuitSigner);
@@ -84,7 +114,13 @@ app.post("/instantiate", async (req: Request, res: Response) => {
     // Send the transaction data to the client for minting and burning the PKP
     if (clientSocket && results?.ipfsCID) {
       const txData = generateTransactionDataToSign(results?.ipfsCID as string);
-      clientSocket.send(JSON.stringify(txData));
+      clientSocket.send(
+        JSON.stringify({
+          txData,
+          ipfs: results?.ipfsCID,
+          id,
+        })
+      );
     }
 
     res.status(200).json({
@@ -103,7 +139,7 @@ app.post("/instantiate", async (req: Request, res: Response) => {
 app.post("/start", async (req: Request, res: Response) => {
   try {
     const { id, instantiatorAddress, authSignature, signedPKPTransactionData } =
-      req.body;
+      JSON.parse(req.body);
 
     const { tokenId, publicKey, address } = await activeCircuits
       .get(id)
@@ -154,7 +190,7 @@ app.post("/start", async (req: Request, res: Response) => {
 
 app.post("/interrupt", async (req: Request, res: Response) => {
   try {
-    const { id, instantiatorAddress } = req.body;
+    const { id, instantiatorAddress } = JSON.parse(req.body);
 
     activeCircuits.delete(id);
     const results = await interruptCircuitRunning(id, instantiatorAddress);
@@ -170,7 +206,7 @@ app.post("/interrupt", async (req: Request, res: Response) => {
 
 app.post("/connect", async (req: Request, res: Response) => {
   try {
-    const { globalAuthSignature } = req.body;
+    const { globalAuthSignature } = JSON.parse(req.body);
     await connectLitClient();
 
     // set auth signature
