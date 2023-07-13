@@ -92,13 +92,19 @@ app.post("/instantiate", async (req: Request, res: Response) => {
     // instantiate the new circuit
     const newCircuit = new Circuit(provider, circuitSigner);
 
+    const newExecutionConstraints = {
+      ...executionConstraints,
+      startDate: new Date(executionConstraints.startDate as any),
+      endDate: new Date(executionConstraints.endDate as any),
+    };
+
     // Create new circuit with ListenerDB
     const results = await addCircuitLogic(
       newCircuit,
       contractConditions,
       contractActions,
       conditionalLogic,
-      executionConstraints
+      newExecutionConstraints
     );
     id = results?.id;
 
@@ -108,7 +114,7 @@ app.post("/instantiate", async (req: Request, res: Response) => {
       contractConditions,
       contractActions,
       conditionalLogic,
-      executionConstraints,
+      newExecutionConstraints,
     });
 
     // Send the transaction data to the client for minting and burning the PKP

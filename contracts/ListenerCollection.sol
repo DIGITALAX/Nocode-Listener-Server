@@ -191,9 +191,8 @@ contract ListenerCollection {
     ) external {
         address _creator = msg.sender;
         require(
-            _accessControl.isAdmin(_creator) ||
-                _accessControl.isWriter(_creator),
-            "ListenerCollection: Only admin or writer can perform this action"
+            _accessControl.isAdmin(_creator),
+            "ListenerCollection: Only admin can perform this action"
         );
         require(
             _listenerFulfillment.getFulfillerAddress(params.fulfillerId) !=
@@ -239,9 +238,8 @@ contract ListenerCollection {
         );
 
         require(
-            _accessControl.isAdmin(_creator) ||
-                _accessControl.isWriter(_creator),
-            "ListenerCollection: Only admin or writer can perform this action"
+            _accessControl.isAdmin(_creator),
+            "ListenerCollection: Only admin can perform this action"
         );
         require(
             _collections[_collectionId].creator == _creator,

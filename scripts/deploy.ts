@@ -1,23 +1,23 @@
-import { ethers } from "hardhat";
+import { run } from "hardhat";
 
-async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+const main = async () => {
+  try {
+    // const ListenerFactory = await ethers.getContractFactory("ListenerFactory");
+    // const listenerFactory = await ListenerFactory.deploy(
+    //   "ListenerFactory",
+    //   "LFACT"
+    // );
+    // const WAIT_BLOCK_CONFIRMATIONS = 20;
+    // listenerFactory.deployTransaction.wait(WAIT_BLOCK_CONFIRMATIONS);
+    // console.log(`Listener Factory deployed at\n${listenerFactory.address}`);
 
-  const lockedAmount = ethers.utils.parseEther("1");
+    await run(`verify:verify`, {
+      address: "0x13091758Cf341818C14b070bf237d42913fDCEbc",
+      constructorArguments: ["ListenerFactory", "LFACT"],
+    });
+  } catch (err: any) {
+    console.error(err.message);
+  }
+};
 
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
-
-  await lock.deployed();
-
-  console.log(`Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`);
-}
-
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main();
