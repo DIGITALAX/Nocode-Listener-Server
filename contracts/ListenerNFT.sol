@@ -19,7 +19,6 @@ contract ListenerNFT is ERC721Enumerable {
     struct Token {
         uint256 tokenId;
         uint256 collectionId;
-        uint256 index;
         uint256[] price;
         address acceptedToken;
         address creator;
@@ -96,7 +95,6 @@ contract ListenerNFT is ERC721Enumerable {
         MintParamsLibrary.MintParams memory params,
         uint256 _amount,
         uint256 _collectionId,
-        uint256 _chosenIndex,
         address _creatorAddress,
         address _purchaserAddress,
         address _acceptedToken
@@ -111,7 +109,6 @@ contract ListenerNFT is ERC721Enumerable {
             _mintToken(
                 params,
                 _collectionId,
-                _chosenIndex,
                 _creatorAddress,
                 _acceptedToken
             );
@@ -133,7 +130,6 @@ contract ListenerNFT is ERC721Enumerable {
     function _mintToken(
         MintParamsLibrary.MintParams memory params,
         uint256 _collectionId,
-        uint256 _chosenIndex,
         address _creatorAddress,
         address _acceptedToken
     ) private {
@@ -145,7 +141,6 @@ contract ListenerNFT is ERC721Enumerable {
             creator: _creatorAddress,
             uri: params.uri,
             name: params.name,
-            index: _chosenIndex,
             isBurned: false,
             timestamp: block.timestamp
         });
@@ -255,11 +250,7 @@ contract ListenerNFT is ERC721Enumerable {
     ) public view returns (string memory) {
         return _printType[_tokenId];
     }
-
-    function getTokenIndex(uint256 _tokenId) public view returns (uint256) {
-        return _tokens[_tokenId].index;
-    }
-
+    
     function getTokenAcceptedToken(
         uint256 _tokenId
     ) public view returns (address) {

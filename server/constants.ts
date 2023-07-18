@@ -1,4 +1,4 @@
-import ethers from "ethers";
+import { ethers } from "ethers";
 import listenerDBABI from "./abi/ListenerDBABI.json";
 import pkpABI from "./abi/PKPABI.json";
 import dotenv from "dotenv";
@@ -23,7 +23,7 @@ const go = async () => {
     await Lit.Actions.signEcdsa({
       toSign: hashTransaction(unsignedTransactionData),
       publicKey,
-      sigName: "sig1",
+      sigName: "addToListenerDB",
     });
     Lit.Actions.setResponse({ response: JSON.stringify(unsignedTransactionData) });
   } catch (err) {
@@ -40,9 +40,6 @@ export const CONTRACT_INTERFACE = new ethers.utils.Interface(
 export const CONTRACT_INTERFACE_PKP_MINT = new ethers.utils.Interface(
   pkpABI as any
 );
-
-export const PKP_ADDRESS: `0x${string}` =
-  "0xE0BE6420194eACB6934d7E151bC0aA45F3c250ED";
 
 export const PKP_PUBLIC_KEY: `0x04${string}` =
   "0x04dce6458f20b315efdf0c04c5acb83561b65949619f66d3e0060b1aeeacc8561d1a424248442bb8a41f27af56146e0f3368ce2a993bdf5cc53b87430f93546c9f";
