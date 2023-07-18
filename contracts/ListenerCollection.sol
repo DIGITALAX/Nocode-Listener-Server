@@ -284,7 +284,6 @@ contract ListenerCollection {
     function _mintNFT(
         Collection memory _collection,
         uint256 _amount,
-        uint256 _chosenIndex,
         address _creatorAddress,
         address _purchaserAddress,
         address _acceptedToken
@@ -303,7 +302,6 @@ contract ListenerCollection {
             paramsNFT,
             _amount,
             _collectionSupply,
-            _chosenIndex,
             _creatorAddress,
             _purchaserAddress,
             _acceptedToken
@@ -313,7 +311,6 @@ contract ListenerCollection {
     function purchaseAndMintToken(
         uint256 _collectionId,
         uint256 _amount,
-        uint256 _chosenIndex,
         address _purchaserAddress,
         address _acceptedToken
     ) external onlyMarket {
@@ -339,7 +336,6 @@ contract ListenerCollection {
         _mintNFT(
             _collections[_collectionId],
             _amount,
-            _chosenIndex,
             collection.creator,
             _purchaserAddress,
             _acceptedToken
@@ -353,7 +349,6 @@ contract ListenerCollection {
         }
 
         collection.tokenIds = _concatenate(collection.tokenIds, newTokenIds);
-        collection.index = _chosenIndex;
 
         emit TokensMinted(
             collection.collectionId,

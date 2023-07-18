@@ -13,7 +13,7 @@ library MarketParamsLibrary {
     struct MarketParams {
         uint256[] listenerIds;
         uint256[] listenerAmounts;
-        uint256[] indexes;
+        uint256[] chosenIndexes;
         string fulfillmentDetails;
         address chosenTokenAddress;
     }
@@ -113,6 +113,7 @@ contract ListenerMarket {
         uint256[] listenerIds,
         uint256[] listenerAmounts,
         address chosenTokenAddress,
+        uint256[] indexAmounts,
         uint256[] prices,
         address buyer
     );
@@ -180,7 +181,7 @@ contract ListenerMarket {
                 params.listenerIds[i],
                 exchangeRate,
                 params.listenerAmounts[i],
-                params.indexes[i],
+                params.chosenIndexes[i],
                 params.chosenTokenAddress
             );
             _canPurchase(
@@ -201,7 +202,6 @@ contract ListenerMarket {
             _listenerCollection.purchaseAndMintToken(
                 params.listenerIds[i],
                 params.listenerAmounts[i],
-                params.indexes[i],
                 msg.sender,
                 params.chosenTokenAddress
             );
@@ -228,6 +228,7 @@ contract ListenerMarket {
             params.listenerIds,
             params.listenerAmounts,
             params.chosenTokenAddress,
+            params.chosenIndexes,
             _prices,
             msg.sender
         );
@@ -302,10 +303,6 @@ contract ListenerMarket {
                 _amount <
                 _listenerCollection.getCollectionAmount(_collectionId),
             "ListenerMarket: No more tokens can be bought from this collection."
-        );
-
-        uint256 collectionIndex = _listenerCollection.getCollectionIndex(
-            _collectionId
         );
 
         uint256 basePrice = _listenerCollection.getCollectionPrice(
@@ -479,7 +476,7 @@ contract ListenerMarket {
     ) public view returns (uint256) {
         return _orders[_orderId].fulfillerId;
     }
-    
+
     function getOrderSupply() public view returns (uint256) {
         return _orderSupply;
     }
