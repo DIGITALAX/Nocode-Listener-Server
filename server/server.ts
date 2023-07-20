@@ -14,6 +14,8 @@ import {
   WebhookCondition,
   ContractCondition,
   LitUnsignedTransaction,
+  FetchAction,
+  ContractAction,
 } from "lit-listener-sdk";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -28,13 +30,13 @@ import http from "http";
 import { create } from "ipfs-http-client";
 import BluebirdPromise from "bluebird";
 import { ethers } from "ethers";
-import { ExecuteJsProps, ExecuteJsResponse } from "@lit-protocol/types";
+import { ExecuteJsResponse } from "@lit-protocol/types";
 
 const activeCircuits = new Map();
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-const port = 3001;
+const port = 3000;
 let clientSocket: WebSocket | null = null;
 let authSig: LitAuthSig;
 const litClient = new LitJsSdk.LitNodeClient({
@@ -93,8 +95,8 @@ app.post("/instantiate", async (req: Request, res: Response) => {
     const {
       provider,
       executionConstraints,
-      contractConditions,
-      contractActions,
+      circuitConditions,
+      circuitActions,
       conditionalLogic,
     } = req.body;
 
@@ -107,13 +109,24 @@ app.post("/instantiate", async (req: Request, res: Response) => {
       endDate: new Date(executionConstraints.endDate as any),
     };
 
-    const newConditions = createConditions(contractConditions);
+    // get the provider url
+    const providerURLsConditions = getProviderURLToChain(circuitConditions);
+    const providerURLsActions = getProviderURLToChain(
+      undefined,
+      circuitActions
+    );
+
+    const newConditions = createConditions(
+      circuitConditions,
+      providerURLsConditions
+    );
+    const newActions = createActions(circuitActions, providerURLsActions);
 
     // Create new circuit with ListenerDB
     const results = await addCircuitLogic(
       newCircuit,
       newConditions,
-      contractActions,
+      newActions,
       conditionalLogic,
       newExecutionConstraints
     );
@@ -123,7 +136,7 @@ app.post("/instantiate", async (req: Request, res: Response) => {
     activeCircuits.set(id, {
       newCircuit,
       newConditions,
-      contractActions,
+      newActions,
       conditionalLogic,
       newExecutionConstraints,
       unsignedTransactionData: results?.unsignedTransactionDataObject,
@@ -486,7 +499,10 @@ const ipfsUpload = async (
   }
 };
 
-const createConditions = (conditions: Condition[]) => {
+const createConditions = (
+  conditions: Condition[],
+  providerURLs: string[]
+): Condition[] => {
   let newConditions: Condition[] = [];
 
   for (let i = 0; i < conditions?.length; i++) {
@@ -497,10 +513,7 @@ const createConditions = (conditions: Condition[]) => {
         (conditions[i] as WebhookCondition).responsePath,
         (conditions[i] as WebhookCondition).expectedValue,
         (conditions[i] as WebhookCondition).matchOperator,
-        (conditions[i] as WebhookCondition).apiKey,
-        (conditions[i] as WebhookCondition).onMatched,
-        (conditions[i] as WebhookCondition).onUnMatched,
-        (conditions[i] as WebhookCondition).onError
+        (conditions[i] as WebhookCondition).apiKey
       );
       newConditions.push(webhookCondition);
     } else {
@@ -508,14 +521,11 @@ const createConditions = (conditions: Condition[]) => {
         (conditions[i] as ContractCondition).contractAddress,
         (conditions[i] as ContractCondition).abi,
         (conditions[i] as ContractCondition).chainId,
-        (conditions[i] as ContractCondition).providerURL,
+        providerURLs[i],
         (conditions[i] as ContractCondition).eventName,
         (conditions[i] as ContractCondition).eventArgName,
         (conditions[i] as ContractCondition).expectedValue,
-        (conditions[i] as ContractCondition).matchOperator,
-        (conditions[i] as ContractCondition).onMatched,
-        (conditions[i] as ContractCondition).onUnMatched,
-        (conditions[i] as ContractCondition).onError
+        (conditions[i] as ContractCondition).matchOperator
       );
       newConditions.push(webhookCondition);
     }
@@ -569,4 +579,58 @@ const broadCastToDB = async (
   } catch (err: any) {
     console.error(err.message);
   }
+};
+
+const getProviderURLToChain = (
+  circuitConditions?: Condition[],
+  circuitActions?: Action[]
+): string[] => {
+  let providerURLs: string[] = [];
+  if (circuitConditions) {
+    for (let i = 0; i < circuitConditions?.length; i++) {
+      if ((circuitConditions[i] as ContractCondition)?.chainId) {
+        const condition = circuitConditions[i] as ContractCondition;
+        providerURLs.push(providerFetch(condition?.chainId));
+      }
+    }
+  } else if (circuitActions) {
+    for (let i = 0; i < circuitActions?.length; i++) {
+      if ((circuitActions[i] as ContractAction)?.chainId) {
+        const action = circuitActions[i] as ContractAction;
+        providerURLs.push(providerFetch(action?.chainId));
+      }
+    }
+  }
+  return providerURLs;
+};
+
+const createActions = (actions: Action[], providerURLs: string[]): Action[] => {
+  let newActions: Action[] = [];
+  let counter = 0;
+
+  for (let i = 0; i < actions?.length; i++) {
+    if ((actions[i] as FetchAction)?.baseUrl) {
+      newActions.push(actions[i]);
+    } else {
+      const newAction = {
+        ...actions[i],
+        providerURL: providerURLs[counter],
+      };
+      newActions.push(newAction);
+    }
+    counter++;
+  }
+  return newActions;
+};
+
+const providerFetch = (chainId: string): string => {
+  let providerURL = "";
+  if (chainId === "ethereum") {
+    providerURL = `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_ETHEREUM_KEY}`;
+  } else if (chainId === "polygon") {
+    providerURL = `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_POLYGON_KEY}`;
+  } else if (chainId === "mumbai") {
+    providerURL = `https://polygon-mumbai.g.alchemy.com/v2/${process.env.ALCHEMY_MUMBAI_KEY}`;
+  }
+  return providerURL;
 };
