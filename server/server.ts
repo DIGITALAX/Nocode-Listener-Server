@@ -22,6 +22,7 @@ import {
   CONTRACT_INTERFACE,
   IPFS_AUTH,
   LISTENER_DB_ADDRESS,
+  PKP_ETH_ADDRESS,
   PKP_PUBLIC_KEY,
 } from "./constants";
 import { LitAuthSig } from "./types";
@@ -33,6 +34,8 @@ import { ethers } from "ethers";
 import { ExecuteJsResponse } from "@lit-protocol/types";
 
 const activeCircuits = new Map();
+const circuitEventListeners = new Map();
+const lastLogSent = new Map<string, number>();
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -89,11 +92,18 @@ wss.on("connection", (socket) => {
   });
 });
 
+wss.on("error", function (error) {
+  console.log("WebSocket Error: ", error);
+});
+
+wss.on("open", function (error) {
+  console.log("WebSocket Error: ", error);
+});
+
 app.post("/instantiate", async (req: Request, res: Response) => {
   let id: string | undefined;
   try {
     const {
-      provider,
       executionConstraints,
       circuitConditions,
       circuitActions,
@@ -101,7 +111,7 @@ app.post("/instantiate", async (req: Request, res: Response) => {
     } = req.body;
 
     // instantiate the new circuit
-    const newCircuit = new Circuit(provider);
+    const newCircuit = new Circuit();
 
     const newExecutionConstraints = {
       ...executionConstraints,
@@ -158,9 +168,16 @@ app.post("/instantiate", async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     // Delete on error if it exists
-    if (activeCircuits.has(id)) {
+
+    const circuitToRemove = activeCircuits.get(id);
+
+    if (circuitToRemove) {
+      circuitToRemove.off("log", circuitEventListeners.get(id));
       activeCircuits.delete(id);
+      circuitEventListeners.delete(id);
+      lastLogSent.delete(id!);
     }
+
     return res.json({ message: `Error instantiating Circuit: ${err.message}` });
   }
 });
@@ -191,15 +208,17 @@ app.post("/start", async (req: Request, res: Response) => {
       }
     );
 
-    // Listen in on all logs
-    activeCircuits.get(id).newCircuit.on("log", (logEntry: ILogEntry) => {
+    const circuitEventListener = (logEntry: string) => {
       saveLogToSubgraph(
         logEntry,
         id,
         instantiatorAddress,
         activeCircuits.get(id).newCircuit
       );
-    });
+    };
+
+    activeCircuits.get(id).newCircuit.on("log", circuitEventListener);
+    circuitEventListeners.set(id, circuitEventListener);
 
     let startCircuitPromise = activeCircuits.get(id).newCircuit.start({
       publicKey: publicKey,
@@ -264,7 +283,15 @@ app.post("/interrupt", async (req: Request, res: Response) => {
   try {
     const { id, instantiatorAddress } = req.body;
 
-    activeCircuits.delete(id);
+    const circuitToRemove = activeCircuits.get(id);
+
+    if (circuitToRemove) {
+      circuitToRemove.off("log", circuitEventListeners.get(id));
+      activeCircuits.delete(id);
+      circuitEventListeners.delete(id);
+      lastLogSent.delete(id);
+    }
+
     const results = await interruptCircuitRunning(id, instantiatorAddress);
 
     return res.status(200).json({
@@ -348,64 +375,65 @@ const saveCircuitToSubgraph = async (
       instantiatorAddress,
       information,
     };
-    const unsignedTransactionData = generateUnsignedData("addCircuitOnChain", [
-      id,
-      circuitInformation,
-      instantiatorAddress,
-    ]);
+    const unsignedTransactionData = await generateUnsignedData(
+      "addCircuitOnChain",
+      [id, circuitInformation, instantiatorAddress]
+    );
     await executeJS(unsignedTransactionData);
   } catch (err: any) {
-    console.log("subgraph error");
     console.error(err.message);
   }
 };
 
 const saveLogToSubgraph = async (
-  logEntry: ILogEntry,
+  logEntry: string,
   id: string,
   instantiatorAddress: string,
   newCircuit: Circuit
 ) => {
   try {
-    if (
-      logEntry.category === LogCategory.ERROR ||
-      (logEntry.category === LogCategory.CONDITION &&
-        logEntry.message.includes(
-          "Execution Condition Not Met to Continue Circuit."
-        ))
-    ) {
-      const unsignedTransactionData = generateUnsignedData("addLogToCircuit", [
-        instantiatorAddress,
-        id,
-        [JSON.stringify(logEntry)],
-      ]);
-      await executeJS(unsignedTransactionData);
+    const logs = newCircuit.getLogs();
+    if (logEntry.includes("Execution Condition Not Met to Continue Circuit.")) {
+      const lastLogIndex = lastLogSent.get(id) || 0;
+      const remainingLogs = logs
+        .slice(lastLogIndex)
+        .map((log) => JSON.stringify(log));
+      lastLogSent.set(id, logs.length);
+      const unsignedTransactionDataAllLogs = await generateUnsignedData(
+        "addLogToCircuit",
+        [instantiatorAddress, id, remainingLogs]
+      );
+      await executeJS(unsignedTransactionDataAllLogs);
 
-      if (
-        logEntry.category === LogCategory.CONDITION &&
-        logEntry.message.includes(
-          "Execution Condition Not Met to Continue Circuit."
-        )
-      ) {
-        const unsignedTransactionDataComplete = generateUnsignedData(
-          "completeCircuit",
-          [instantiatorAddress, id]
-        );
-        await executeJS(unsignedTransactionDataComplete);
+      const unsignedTransactionDataComplete = await generateUnsignedData(
+        "completeCircuit",
+        [instantiatorAddress, id]
+      );
+      await executeJS(unsignedTransactionDataComplete);
 
-        // Delete from active circuits on complete
+      // Delete from active circuits on complete
+      const circuitToRemove = activeCircuits.get(id);
+
+      if (circuitToRemove) {
+        circuitToRemove.off("log", circuitEventListeners.get(id));
         activeCircuits.delete(id);
+        circuitEventListeners.delete(id);
+        lastLogSent.delete(id);
       }
     } else if (newCircuit.getLogs().length % 10 === 0) {
-      const unsignedTransactionData = generateUnsignedData("addLogToCircuit", [
-        instantiatorAddress,
-        id,
-        newCircuit
-          .getLogs()
-          .slice(-10)
-          .map((log) => JSON.stringify(log)),
-      ]);
+      const unsignedTransactionData = await generateUnsignedData(
+        "addLogToCircuit",
+        [
+          instantiatorAddress,
+          id,
+          newCircuit
+            .getLogs()
+            .slice(-10)
+            .map((log) => JSON.stringify(log)),
+        ]
+      );
       await executeJS(unsignedTransactionData);
+      lastLogSent.set(id, logs.length);
     }
   } catch (err: any) {
     console.error(err.message);
@@ -417,10 +445,10 @@ const interruptCircuitRunning = async (
   instantiatorAddress: string
 ) => {
   try {
-    const unsignedTransactionData = generateUnsignedData("interruptCircuit", [
-      id,
-      instantiatorAddress,
-    ]);
+    const unsignedTransactionData = await generateUnsignedData(
+      "interruptCircuit",
+      [id, instantiatorAddress]
+    );
 
     const results = await executeJS(unsignedTransactionData);
 
@@ -435,9 +463,8 @@ const executeJS = async (unsignedTransactionData: {
   nonce: number;
   chainId: number;
   gasLimit: string;
-  gasPrice: undefined;
-  maxFeePerGas: undefined;
-  maxPriorityFeePerGas: undefined;
+  maxFeePerGas: ethers.BigNumber;
+  maxPriorityFeePerGas: ethers.BigNumber;
   from: string;
   data: string;
   value: number;
@@ -453,7 +480,6 @@ const executeJS = async (unsignedTransactionData: {
         unsignedTransactionData,
       },
     });
-    console.log({ sigs: results.signatures, debug: results.debug });
 
     // Broadcast the signed transaction
     await broadCastToDB(results, unsignedTransactionData);
@@ -472,15 +498,17 @@ const connectLitClient = async () => {
   }
 };
 
-const generateUnsignedData = (functionName: string, args: any[]) => {
+const generateUnsignedData = async (functionName: string, args: any[]) => {
+  const gasPrice = await providerDB.getGasPrice();
+  const blockchainNonce = await providerDB.getTransactionCount(PKP_ETH_ADDRESS);
+
   return {
     to: LISTENER_DB_ADDRESS,
-    nonce: 0,
+    nonce: blockchainNonce,
     chainId: 137,
-    gasLimit: "50000",
-    gasPrice: undefined,
-    maxFeePerGas: undefined,
-    maxPriorityFeePerGas: undefined,
+    gasLimit: "500000",
+    maxFeePerGas: gasPrice.mul(2),
+    maxPriorityFeePerGas: gasPrice.div(2),
     from: "{{publicKey}}",
     data: CONTRACT_INTERFACE.encodeFunctionData(functionName, args),
     value: 0,
@@ -540,9 +568,8 @@ const broadCastToDB = async (
     nonce: number;
     chainId: number;
     gasLimit: string;
-    gasPrice: undefined;
-    maxFeePerGas: undefined;
-    maxPriorityFeePerGas: undefined;
+    maxFeePerGas: ethers.BigNumber;
+    maxPriorityFeePerGas: ethers.BigNumber;
     from: string;
     data: string;
     value: number;
@@ -550,7 +577,7 @@ const broadCastToDB = async (
   }
 ): Promise<void> => {
   try {
-    const signature = results.signatures[0];
+    const signature = results?.signatures?.sig1;
     const sig: {
       r: string;
       s: string;
@@ -568,9 +595,9 @@ const broadCastToDB = async (
     };
 
     const encodedSignature = joinSignature({
-      r: "0x" + sig.r,
-      s: "0x" + sig.s,
-      recoveryParam: sig.recid,
+      r: "0x" + sig?.r,
+      s: "0x" + sig?.s,
+      recoveryParam: sig?.recid,
     });
 
     const serialized = serialize(unsignedTransactionData, encodedSignature);
