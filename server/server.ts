@@ -147,6 +147,8 @@ app.post("/instantiate", async (req: Request, res: Response) => {
     );
     id = results?.id;
 
+    console.log({ id });
+
     // Add the circuit to the activeCircuits map
     activeCircuits.set(id, {
       newCircuit,
@@ -206,6 +208,8 @@ app.post("/start", async (req: Request, res: Response) => {
       publicKey: string;
       address: string;
     } = req.body;
+
+    console.log({ id });
 
     if (!activeCircuits.has(id)) {
       return res
@@ -426,15 +430,21 @@ const saveCircuitToSubgraph = async (
       }),
     };
 
+    console.log({ id }, "inside save to subgraph");
+
     const ipfsHash = await ipfsUpload(
       JSON.stringify({
         circuitInformation,
       })
     );
 
+    console.log(id);
+
+    let uuidBytes = ethers.utils.toUtf8Bytes(id);
+
     const unsignedTransactionData = await generateUnsignedData(
       "addCircuitOnChain",
-      [id, `ipfs://${ipfsHash}`, instantiatorAddress]
+      [uuidBytes, `ipfs://${ipfsHash}`, instantiatorAddress]
     );
     await executeJS(unsignedTransactionData);
   } catch (err: any) {
@@ -465,16 +475,18 @@ const saveLogToSubgraph = async (
 
       const logsHashAll = await ipfsUpload(JSON.stringify(remainingLogs));
 
+      let uuidBytes = ethers.utils.toUtf8Bytes(id);
+
       const unsignedTransactionDataAllLogs = await generateUnsignedData(
         "addLogToCircuit",
-        [instantiatorAddress, id, `ipfs://${logsHashAll}`]
+        [instantiatorAddress, uuidBytes, `ipfs://${logsHashAll}`]
       );
 
       await executeJS(unsignedTransactionDataAllLogs);
 
       const unsignedTransactionDataComplete = await generateUnsignedData(
         "completeCircuit",
-        [id, instantiatorAddress]
+        [uuidBytes, instantiatorAddress]
       );
       await executeJS(unsignedTransactionDataComplete);
       // Delete from active circuits on complete
@@ -491,9 +503,11 @@ const saveLogToSubgraph = async (
         JSON.stringify(newCircuit.getLogs().slice(-10))
       );
 
+      let uuidBytes = ethers.utils.toUtf8Bytes(id);
+
       const unsignedTransactionData = await generateUnsignedData(
         "addLogToCircuit",
-        [instantiatorAddress, id, `ipfs://${logsHash}`]
+        [instantiatorAddress, uuidBytes, `ipfs://${logsHash}`]
       );
       await executeJS(unsignedTransactionData);
       lastLogSent.set(id, logs.length);
@@ -508,9 +522,10 @@ const interruptCircuitRunning = async (
   instantiatorAddress: string
 ) => {
   try {
+    let uuidBytes = ethers.utils.toUtf8Bytes(id);
     const unsignedTransactionData = await generateUnsignedData(
       "interruptCircuit",
-      [id, instantiatorAddress]
+      [uuidBytes, instantiatorAddress]
     );
 
     console.log("nterrupt");
@@ -566,6 +581,7 @@ const connectLitClient = async () => {
 };
 
 const generateUnsignedData = async (functionName: string, args: any[]) => {
+  console.log({ args }, "inside unsigned data");
   let gasPrice: ethers.BigNumber, blockchainNonce: number;
   try {
     gasPrice = await providerDB.getGasPrice();
