@@ -4,7 +4,7 @@ import pkpABI from "./abi/PKPABI.json";
 import dotenv from "dotenv";
 dotenv.config();
 
-export const LISTENER_DB_ADDRESS: `0x${string}` = `0x659d8ddffc85d26c877701e3323ec8c6d69aea1e`;
+export const LISTENER_DB_ADDRESS: `0x${string}` = `0x91e3233ec0e475f1e0c910181ad23a621d766455`;
 
 export const PKP_MINTING_ADDRESS: `0x${string}` =
   "0x8F75a53F65e31DD0D2e40d0827becAaE2299D111";

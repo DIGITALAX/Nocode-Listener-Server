@@ -12,7 +12,7 @@ const main = async () => {
     // console.log(`Listener Factory deployed at\n${listenerFactory.address}`);
 
     await run(`verify:verify`, {
-      address: "0x13091758Cf341818C14b070bf237d42913fDCEbc",
+      address: "0xc1e2a333c4d1A260A134c7b2Ee05523cF5fF86ed",
       constructorArguments: ["ListenerFactory", "LFACT"],
     });
   } catch (err: any) {

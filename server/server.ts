@@ -9,8 +9,6 @@ import {
   Action,
   Condition,
   IExecutionConstraints,
-  ILogEntry,
-  LogCategory,
   WebhookCondition,
   ContractCondition,
   LitUnsignedTransaction,
@@ -108,7 +106,14 @@ app.post("/instantiate", async (req: Request, res: Response) => {
       circuitConditions,
       circuitActions,
       conditionalLogic,
+    }: {
+      executionConstraints: IExecutionConstraints;
+      circuitConditions: Condition[];
+      circuitActions: Action[];
+      conditionalLogic: IConditionalLogic;
     } = req.body;
+
+    
 
     // instantiate the new circuit
     const newCircuit = new Circuit();
@@ -172,7 +177,7 @@ app.post("/instantiate", async (req: Request, res: Response) => {
     const circuitToRemove = activeCircuits.get(id);
 
     if (circuitToRemove) {
-      circuitToRemove.off("log", circuitEventListeners.get(id));
+      circuitToRemove.newCircuit.off("log", circuitEventListeners.get(id));
       activeCircuits.delete(id);
       circuitEventListeners.delete(id);
       lastLogSent.delete(id!);
@@ -191,6 +196,13 @@ app.post("/start", async (req: Request, res: Response) => {
       tokenId,
       publicKey,
       address,
+    }: {
+      id: string;
+      instantiatorAddress: `0x${string}`;
+      authSignature: LitAuthSig;
+      tokenId: string;
+      publicKey: string;
+      address: string;
     } = req.body;
 
     // Save the circuit configuration to the database
@@ -281,12 +293,18 @@ app.post("/start", async (req: Request, res: Response) => {
 
 app.post("/interrupt", async (req: Request, res: Response) => {
   try {
-    const { id, instantiatorAddress } = req.body;
+    const {
+      id,
+      instantiatorAddress,
+    }: {
+      id: string;
+      instantiatorAddress: `0x${string}`;
+    } = req.body;
 
     const circuitToRemove = activeCircuits.get(id);
 
     if (circuitToRemove) {
-      circuitToRemove.off("log", circuitEventListeners.get(id));
+      circuitToRemove.newCircuit.off("log", circuitEventListeners.get(id));
       activeCircuits.delete(id);
       circuitEventListeners.delete(id);
       lastLogSent.delete(id);
@@ -305,6 +323,9 @@ app.post("/interrupt", async (req: Request, res: Response) => {
 
 app.post("/connect", async (req: Request, res: Response) => {
   try {
+    if (authSig) {
+      return res.status(200).json({ message: `Lit Client Already Connected.` });
+    }
     const { globalAuthSignature } = req.body;
     await connectLitClient();
 
@@ -375,9 +396,16 @@ const saveCircuitToSubgraph = async (
       instantiatorAddress,
       information,
     };
+
+    const ipfsHash = await ipfsUpload(
+      JSON.stringify({
+        circuitInformation,
+      })
+    );
+
     const unsignedTransactionData = await generateUnsignedData(
       "addCircuitOnChain",
-      [id, circuitInformation, instantiatorAddress]
+      [id, `ipfs://${ipfsHash}`, instantiatorAddress]
     );
     await executeJS(unsignedTransactionData);
   } catch (err: any) {
@@ -393,44 +421,50 @@ const saveLogToSubgraph = async (
 ) => {
   try {
     const logs = newCircuit.getLogs();
-    if (logEntry.includes("Execution Condition Not Met to Continue Circuit.")) {
+    let logEntryParsed: {
+      message: string;
+      responseObject: string;
+    } = JSON.parse(logEntry);
+    if (
+      logEntryParsed.message.includes("Condition Not Met to Continue Circuit.")
+    ) {
       const lastLogIndex = lastLogSent.get(id) || 0;
       const remainingLogs = logs
         .slice(lastLogIndex)
         .map((log) => JSON.stringify(log));
       lastLogSent.set(id, logs.length);
+
+      const logsHashAll = await ipfsUpload(JSON.stringify(remainingLogs));
+
       const unsignedTransactionDataAllLogs = await generateUnsignedData(
         "addLogToCircuit",
-        [instantiatorAddress, id, remainingLogs]
+        [instantiatorAddress, id, `ipfs://${logsHashAll}`]
       );
+
       await executeJS(unsignedTransactionDataAllLogs);
 
       const unsignedTransactionDataComplete = await generateUnsignedData(
         "completeCircuit",
-        [instantiatorAddress, id]
+        [id, instantiatorAddress]
       );
       await executeJS(unsignedTransactionDataComplete);
-
       // Delete from active circuits on complete
       const circuitToRemove = activeCircuits.get(id);
 
       if (circuitToRemove) {
-        circuitToRemove.off("log", circuitEventListeners.get(id));
+        circuitToRemove.newCircuit.off("log", circuitEventListeners.get(id));
         activeCircuits.delete(id);
         circuitEventListeners.delete(id);
         lastLogSent.delete(id);
       }
     } else if (newCircuit.getLogs().length % 10 === 0) {
+      const logsHash = await ipfsUpload(
+        JSON.stringify(newCircuit.getLogs().slice(-10))
+      );
+
       const unsignedTransactionData = await generateUnsignedData(
         "addLogToCircuit",
-        [
-          instantiatorAddress,
-          id,
-          newCircuit
-            .getLogs()
-            .slice(-10)
-            .map((log) => JSON.stringify(log)),
-        ]
+        [instantiatorAddress, id, `ipfs://${logsHash}`]
       );
       await executeJS(unsignedTransactionData);
       lastLogSent.set(id, logs.length);
@@ -499,16 +533,21 @@ const connectLitClient = async () => {
 };
 
 const generateUnsignedData = async (functionName: string, args: any[]) => {
-  const gasPrice = await providerDB.getGasPrice();
-  const blockchainNonce = await providerDB.getTransactionCount(PKP_ETH_ADDRESS);
+  let gasPrice: ethers.BigNumber, blockchainNonce: number;
+  try {
+    gasPrice = await providerDB.getGasPrice();
+    blockchainNonce = await providerDB.getTransactionCount(PKP_ETH_ADDRESS);
+  } catch (err: any) {
+    console.error(err.message);
+  }
 
   return {
     to: LISTENER_DB_ADDRESS,
-    nonce: blockchainNonce,
+    nonce: blockchainNonce!,
     chainId: 137,
     gasLimit: "500000",
-    maxFeePerGas: gasPrice.mul(2),
-    maxPriorityFeePerGas: gasPrice.div(2),
+    maxFeePerGas: gasPrice!.mul(2),
+    maxPriorityFeePerGas: gasPrice!.div(2),
     from: "{{publicKey}}",
     data: CONTRACT_INTERFACE.encodeFunctionData(functionName, args),
     value: 0,
@@ -516,11 +555,9 @@ const generateUnsignedData = async (functionName: string, args: any[]) => {
   };
 };
 
-const ipfsUpload = async (
-  litActionCode: string
-): Promise<string | undefined> => {
+const ipfsUpload = async (stringItem: string): Promise<string | undefined> => {
   try {
-    const added = await client.add(litActionCode);
+    const added = await client.add(stringItem);
     return added.path;
   } catch (err: any) {
     console.error(err.message);

@@ -47,7 +47,7 @@
       {
         "indexed": false,
         "internalType": "string",
-        "name": "encryptedCircuitInformation",
+        "name": "circuitInformation",
         "type": "string"
       },
       {
@@ -110,7 +110,7 @@
       {
         "indexed": false,
         "internalType": "string",
-        "name": "stringifiedEncryptedLog",
+        "name": "stringifiedLogs",
         "type": "string"
       },
       {
@@ -157,7 +157,7 @@
       },
       {
         "internalType": "string",
-        "name": "_encryptedCircuitInformation",
+        "name": "_circuitInformation",
         "type": "string"
       },
       {
@@ -185,7 +185,7 @@
       },
       {
         "internalType": "string",
-        "name": "_stringifiedEncryptedLog",
+        "name": "_stringifiedLogs",
         "type": "string"
       }
     ],
@@ -225,7 +225,7 @@
         "type": "address"
       }
     ],
-    "name": "getCircuitEncryptedInformation",
+    "name": "getCircuitInformation",
     "outputs": [
       {
         "internalType": "string",
