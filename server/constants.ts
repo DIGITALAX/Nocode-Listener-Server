@@ -4,7 +4,7 @@ import pkpABI from "./abi/PKPABI.json";
 import dotenv from "dotenv";
 dotenv.config();
 
-export const LISTENER_DB_ADDRESS: `0x${string}` = `0x91e3233ec0e475f1e0c910181ad23a621d766455`;
+export const LISTENER_DB_ADDRESS: `0x${string}` = `0x5a38736ef22435146fdb695f5ed805922d8f716f`;
 
 export const PKP_MINTING_ADDRESS: `0x${string}` =
   "0x8F75a53F65e31DD0D2e40d0827becAaE2299D111";
@@ -46,6 +46,9 @@ export const PKP_PUBLIC_KEY: `0x04${string}` =
 
 export const PKP_ETH_ADDRESS: `0x${string}` =
   "0xE0BE6420194eACB6934d7E151bC0aA45F3c250ED";
+
+export const PKP_TOKEN_ID: string =
+  "35559075319766216805118011038090727645251441480925032049594057666563324267082";
 
 export const IPFS_AUTH: string =
   "Basic " +
