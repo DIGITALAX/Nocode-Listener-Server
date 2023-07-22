@@ -106,14 +106,14 @@ app.post("/instantiate", async (req: Request, res: Response) => {
       circuitConditions,
       circuitActions,
       conditionalLogic,
+      instantiatorAddress,
     }: {
       executionConstraints: IExecutionConstraints;
       circuitConditions: Condition[];
       circuitActions: Action[];
       conditionalLogic: IConditionalLogic;
+      instantiatorAddress: string;
     } = req.body;
-
-    
 
     // instantiate the new circuit
     const newCircuit = new Circuit();
@@ -153,8 +153,10 @@ app.post("/instantiate", async (req: Request, res: Response) => {
       newConditions,
       newActions,
       conditionalLogic,
+      instantiatorAddress,
       newExecutionConstraints,
       unsignedTransactionData: results?.unsignedTransactionDataObject,
+      ipfsHash: results?.ipfsCID,
     });
 
     // Send the IPFS CID back
@@ -205,6 +207,12 @@ app.post("/start", async (req: Request, res: Response) => {
       address: string;
     } = req.body;
 
+    if (!activeCircuits.has(id)) {
+      return res
+        .status(404)
+        .json({ message: `No active circuit found with id ${id}` });
+    }
+
     // Save the circuit configuration to the database
     await saveCircuitToSubgraph(
       id,
@@ -212,9 +220,10 @@ app.post("/start", async (req: Request, res: Response) => {
       publicKey,
       address,
       instantiatorAddress,
+      activeCircuits.get(id).ipfsHash,
       {
-        contractConditions: activeCircuits.get(id).contractConditions,
-        contractActions: activeCircuits.get(id).contractActions,
+        circuitConditions: activeCircuits.get(id).contractConditions,
+        circuitActions: activeCircuits.get(id).contractActions,
         conditionalLogic: activeCircuits.get(id).conditionalLogic,
         executionConstraints: activeCircuits.get(id).executionConstraints,
       }
@@ -282,7 +291,7 @@ app.post("/start", async (req: Request, res: Response) => {
         }`,
       });
     } else {
-      return res.status(202).json({
+      return res.status(200).json({
         message: `Circuit ${id} has started running.`,
       });
     }
@@ -301,16 +310,29 @@ app.post("/interrupt", async (req: Request, res: Response) => {
       instantiatorAddress: `0x${string}`;
     } = req.body;
 
+    if (!activeCircuits.has(id)) {
+      return res
+        .status(404)
+        .json({ message: `No active circuit found with id ${id}` });
+    }
+
     const circuitToRemove = activeCircuits.get(id);
 
+    console.log(circuitToRemove);
+
     if (circuitToRemove) {
+      circuitToRemove.newCircuit.interrupt();
       circuitToRemove.newCircuit.off("log", circuitEventListeners.get(id));
       activeCircuits.delete(id);
       circuitEventListeners.delete(id);
       lastLogSent.delete(id);
     }
 
+    console.log("Removed");
+
     const results = await interruptCircuitRunning(id, instantiatorAddress);
+
+    console.log({ results });
 
     return res.status(200).json({
       message: `Circuit Successfully Interrupted with id ${id}`,
@@ -381,9 +403,10 @@ const saveCircuitToSubgraph = async (
   pkpPublicKey: string,
   pkpAddress: string,
   instantiatorAddress: string,
+  ipfs: string,
   information: {
-    contractConditions: Condition[];
-    contractActions: Action[];
+    circuitConditions: Condition[];
+    circuitActions: Action[];
     conditionalLogic: IConditionalLogic;
     executionConstraints: IExecutionConstraints;
   }
@@ -393,8 +416,14 @@ const saveCircuitToSubgraph = async (
       tokenId,
       pkpPublicKey,
       pkpAddress,
+      ipfs,
       instantiatorAddress,
-      information,
+      information: JSON.stringify({
+        circuitConditions: JSON.stringify(information.circuitConditions),
+        circuitActions: JSON.stringify(information.circuitActions),
+        conditionalLogic: JSON.stringify(information.conditionalLogic),
+        executionConstraints: JSON.stringify(information.executionConstraints),
+      }),
     };
 
     const ipfsHash = await ipfsUpload(
@@ -484,7 +513,11 @@ const interruptCircuitRunning = async (
       [id, instantiatorAddress]
     );
 
+    console.log("nterrupt");
+
     const results = await executeJS(unsignedTransactionData);
+
+    console.log("after execute");
 
     return { id, response: results.response };
   } catch (err: any) {
@@ -698,3 +731,32 @@ const providerFetch = (chainId: string): string => {
   }
   return providerURL;
 };
+
+const interruptAllCircuits = async () => {
+  for (let id of activeCircuits.keys()) {
+    const instantiatorAddress = activeCircuits.get(id).instantiatorAddress;
+    activeCircuits.get(id).newCircuit.interrupt();
+    activeCircuits.get(id).newCircuit.off("log", circuitEventListeners.get(id));
+    await interruptCircuitRunning(id, instantiatorAddress);
+    activeCircuits.delete(id);
+    circuitEventListeners.delete(id);
+    lastLogSent.delete(id);
+  }
+};
+process.on("uncaughtException", async (err) => {
+  console.error("Uncaught exception", err);
+  await interruptAllCircuits();
+  process.exit(1);
+});
+
+process.on("unhandledRejection", async (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  await interruptAllCircuits();
+  process.exit(1);
+});
+
+process.on("SIGTERM", async () => {
+  console.info("Received SIGTERM signal, shutting down gracefully");
+  await interruptAllCircuits();
+  process.exit(0);
+});
