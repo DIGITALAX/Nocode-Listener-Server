@@ -46,7 +46,7 @@ contract ListenerDB {
 
     event LogAdded(
         string indexed circuitId,
-        string[] stringifiedLogs,
+        string stringifiedLogs,
         address instantiatorAddress
     );
 
@@ -108,13 +108,11 @@ contract ListenerDB {
     function addLogToCircuit(
         address _instantiatorAddress,
         string memory _circuitId,
-        string[] memory _stringifiedLogs
+        string memory _stringifiedLogs
     ) external onlyPKP(msg.sender) {
-        for (uint256 i; i < _stringifiedLogs.length; i++) {
-            _addressIdToLogs[_instantiatorAddress][_circuitId].push(
-                _stringifiedLogs[i]
-            );
-        }
+        _addressIdToLogs[_instantiatorAddress][_circuitId].push(
+            _stringifiedLogs
+        );
 
         emit LogAdded(_circuitId, _stringifiedLogs, _instantiatorAddress);
     }
