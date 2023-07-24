@@ -59,6 +59,8 @@ const providerDB = new ethers.providers.JsonRpcProvider(
   137
 );
 
+console.log({PKP_PUBLIC_KEY})
+
 app.use(express.json());
 app.use(cors());
 
@@ -582,6 +584,7 @@ const executeJS = async (unsignedTransactionData: {
   type: number;
 }): Promise<any> => {
   try {
+    console.log({PKP_PUBLIC_KEY})
     const results = await litClient.executeJs({
       ipfsId: "QmbBh8Wu12DVATwQGsLHqx5fT6eSYFQnXys3eYuVEEqkRV",
       code: undefined,
