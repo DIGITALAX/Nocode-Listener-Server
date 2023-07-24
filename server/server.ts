@@ -481,6 +481,7 @@ const saveLogToSubgraph = async (
   instantiatorAddress: string,
   newCircuit: Circuit
 ) => {
+  console.log({logEntry})
   try {
     const logs = newCircuit.getLogs();
     let logEntryParsed: {
@@ -509,12 +510,16 @@ const saveLogToSubgraph = async (
         ]
       );
 
+      console.log({unsignedTransactionDataAllLogs})
+
       await executeJS(unsignedTransactionDataAllLogs);
 
       const unsignedTransactionDataComplete = await generateUnsignedData(
         "completeCircuit",
         [id.replace(/-/g, ""), `ipfs://${hashedId}`, instantiatorAddress]
       );
+
+      console.log({unsignedTransactionDataComplete})
       await executeJS(unsignedTransactionDataComplete);
       // Delete from active circuits on complete
       const circuitToRemove = activeCircuits.get(id);
@@ -541,6 +546,7 @@ const saveLogToSubgraph = async (
           `ipfs://${hashedId}`,
         ]
       );
+      console.log({unsignedTransactionData})
       await executeJS(unsignedTransactionData);
       lastLogSent.set(id, logs.length);
     }
