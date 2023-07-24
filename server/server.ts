@@ -59,8 +59,6 @@ const providerDB = new ethers.providers.JsonRpcProvider(
   137
 );
 
-console.log({PKP_PUBLIC_KEY})
-
 app.use(express.json());
 app.use(cors());
 
@@ -471,7 +469,6 @@ const saveCircuitToSubgraph = async (
       "addCircuitOnChain",
       [id.replace(/-/g, ""), `ipfs://${ipfsHash}`, instantiatorAddress]
     );
-    console.log({ unsignedTransactionData });
     await executeJS(unsignedTransactionData);
   } catch (err: any) {
     console.error(err.message);
@@ -584,9 +581,8 @@ const executeJS = async (unsignedTransactionData: {
   type: number;
 }): Promise<any> => {
   try {
-    console.log({PKP_PUBLIC_KEY})
     const results = await litClient.executeJs({
-      ipfsId: "QmbBh8Wu12DVATwQGsLHqx5fT6eSYFQnXys3eYuVEEqkRV",
+      ipfsId: "QmSrk1TqfTPSiqEPyfbReZPAwfnQQw7Ai9jfPqbQQ8sndR",
       code: undefined,
       authSig,
       jsParams: {
@@ -594,8 +590,6 @@ const executeJS = async (unsignedTransactionData: {
         unsignedTransactionData,
       },
     });
-
-    console.log({ results });
 
     // Broadcast the signed transaction
     await broadCastToDB(results, unsignedTransactionData);
@@ -699,7 +693,7 @@ const broadCastToDB = async (
 ): Promise<void> => {
   try {
     console.log({ results });
-    const signature = results?.signatures?.sig1;
+    const signature = results?.signatures?.addToListenerDB;
     const sig: {
       r: string;
       s: string;
