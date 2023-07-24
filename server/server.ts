@@ -3,6 +3,7 @@ import * as LitJsSdk from "@lit-protocol/lit-node-client";
 import { joinSignature } from "@ethersproject/bytes";
 import { serialize } from "@ethersproject/transactions";
 import cors from "cors";
+import { config } from "dotenv";
 import {
   Circuit,
   IConditionalLogic,
@@ -31,6 +32,7 @@ import BluebirdPromise from "bluebird";
 import { ethers } from "ethers";
 import { ExecuteJsResponse } from "@lit-protocol/types";
 
+config();
 const activeCircuits = new Map();
 const circuitEventListeners = new Map();
 const lastLogSent = new Map<string, number>();
@@ -56,6 +58,7 @@ const providerDB = new ethers.providers.JsonRpcProvider(
   `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_POLYGON_KEY}`,
   137
 );
+
 
 app.use(express.json());
 app.use(cors());
