@@ -1,5 +1,6 @@
 {
-  "factory": "0x1f7a204e8fc8708c41a9f56c3016c1631a226be4",
-  "access": "0xa1331810ce66ef04d45b4a25f9e819528dce0ce3",
-  "db": "0x5a38736ef22435146fdb695f5ed805922d8f716f"
+  "factory": "0x4fB8Ad553FEcAddB5C5caaE06bc10DEc5A5BDDd4",
+  "access": "0x536806528cc5a745a84f43918512123ebe2199d0",
+  "db": "0x853ed3a8e6f910e1dee7b0b4d10d907ad7dc1e33",
+  "litActionDB": "0xd59474993543E947cAD20acB614e59828C36bA03"
 }

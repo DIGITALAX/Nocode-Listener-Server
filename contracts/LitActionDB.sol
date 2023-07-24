@@ -18,7 +18,7 @@ contract LitActionDB {
 
     mapping(string => string) private _idToIPFS;
 
-    event DBEntryAdded(string indexed circuitId, string stringifiedLogs);
+    event DBEntryAdded(string indexed circuitId, string ipfsHash);
 
     event DBEntryRemoved(string indexed circuitId, string circuitInformation);
 

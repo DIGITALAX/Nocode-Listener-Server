@@ -40,6 +40,7 @@ const wss = new WebSocket.Server({ server });
 const port = 3000;
 let clientSocket: WebSocket | null = null;
 let authSig: LitAuthSig;
+let pendingTransactionsCount = 0;
 const litClient = new LitJsSdk.LitNodeClient({
   litNetwork: "serrano",
   debug: true,
@@ -90,12 +91,8 @@ wss.on("connection", (socket) => {
   });
 });
 
-wss.on("error", function (error) {
-  console.log("WebSocket Error: ", error);
-});
-
-wss.on("open", function (error) {
-  console.log("WebSocket Error: ", error);
+wss.on("open", function (event) {
+  console.log("WebSocket Open: ", event);
 });
 
 app.post("/instantiate", async (req: Request, res: Response) => {
@@ -147,16 +144,14 @@ app.post("/instantiate", async (req: Request, res: Response) => {
     );
     id = results?.id;
 
-    console.log({ id });
-
     // Add the circuit to the activeCircuits map
     activeCircuits.set(id, {
       newCircuit,
-      newConditions,
-      newActions,
+      circuitConditions: newConditions,
+      circuitActions: newActions,
       conditionalLogic,
       instantiatorAddress,
-      newExecutionConstraints,
+      executionConstraints: newExecutionConstraints,
       unsignedTransactionData: results?.unsignedTransactionDataObject,
       ipfsHash: results?.ipfsCID,
     });
@@ -187,11 +182,14 @@ app.post("/instantiate", async (req: Request, res: Response) => {
       lastLogSent.delete(id!);
     }
 
-    return res.json({ message: `Error instantiating Circuit: ${err.message}` });
+    return res
+      .status(500)
+      .json({ message: `Error instantiating Circuit: ${err.message}` });
   }
 });
 
 app.post("/start", async (req: Request, res: Response) => {
+  let idValue: string;
   try {
     const {
       id,
@@ -209,13 +207,12 @@ app.post("/start", async (req: Request, res: Response) => {
       address: string;
     } = req.body;
 
-    console.log({ id });
-
     if (!activeCircuits.has(id)) {
       return res
         .status(404)
         .json({ message: `No active circuit found with id ${id}` });
     }
+    idValue = id;
 
     // Save the circuit configuration to the database
     await saveCircuitToSubgraph(
@@ -226,8 +223,8 @@ app.post("/start", async (req: Request, res: Response) => {
       instantiatorAddress,
       activeCircuits.get(id).ipfsHash,
       {
-        circuitConditions: activeCircuits.get(id).contractConditions,
-        circuitActions: activeCircuits.get(id).contractActions,
+        circuitConditions: activeCircuits.get(id).circuitConditions,
+        circuitActions: activeCircuits.get(id).circuitActions,
         conditionalLogic: activeCircuits.get(id).conditionalLogic,
         executionConstraints: activeCircuits.get(id).executionConstraints,
       }
@@ -244,6 +241,8 @@ app.post("/start", async (req: Request, res: Response) => {
 
     activeCircuits.get(id).newCircuit.on("log", circuitEventListener);
     circuitEventListeners.set(id, circuitEventListener);
+
+    activeCircuits.get(id).newCir;
 
     let startCircuitPromise = activeCircuits.get(id).newCircuit.start({
       publicKey: publicKey,
@@ -300,7 +299,21 @@ app.post("/start", async (req: Request, res: Response) => {
       });
     }
   } catch (err: any) {
-    return res.json({ message: `Error Starting Circuit: ${err.message}` });
+    const circuitToRemove = activeCircuits.get(idValue!);
+
+    if (circuitToRemove) {
+      circuitToRemove.newCircuit.off(
+        "log",
+        circuitEventListeners.get(idValue!)
+      );
+      activeCircuits.delete(idValue!);
+      circuitEventListeners.delete(idValue!);
+      lastLogSent.delete(idValue!);
+    }
+
+    return res
+      .status(500)
+      .json({ message: `Error starting Circuit: ${err.message}` });
   }
 });
 
@@ -322,8 +335,6 @@ app.post("/interrupt", async (req: Request, res: Response) => {
 
     const circuitToRemove = activeCircuits.get(id);
 
-    console.log(circuitToRemove);
-
     if (circuitToRemove) {
       circuitToRemove.newCircuit.interrupt();
       circuitToRemove.newCircuit.off("log", circuitEventListeners.get(id));
@@ -332,11 +343,7 @@ app.post("/interrupt", async (req: Request, res: Response) => {
       lastLogSent.delete(id);
     }
 
-    console.log("Removed");
-
     const results = await interruptCircuitRunning(id, instantiatorAddress);
-
-    console.log({ results });
 
     return res.status(200).json({
       message: `Circuit Successfully Interrupted with id ${id}`,
@@ -422,6 +429,7 @@ const saveCircuitToSubgraph = async (
       pkpAddress,
       ipfs,
       instantiatorAddress,
+      id: id.replace(/-/g, ""),
       information: JSON.stringify({
         circuitConditions: JSON.stringify(information.circuitConditions),
         circuitActions: JSON.stringify(information.circuitActions),
@@ -430,21 +438,15 @@ const saveCircuitToSubgraph = async (
       }),
     };
 
-    console.log({ id }, "inside save to subgraph");
-
     const ipfsHash = await ipfsUpload(
       JSON.stringify({
         circuitInformation,
       })
     );
 
-    console.log(id);
-
-    let uuidBytes = ethers.utils.toUtf8Bytes(id);
-
     const unsignedTransactionData = await generateUnsignedData(
       "addCircuitOnChain",
-      [uuidBytes, `ipfs://${ipfsHash}`, instantiatorAddress]
+      [id.replace(/-/g, ""), `ipfs://${ipfsHash}`, instantiatorAddress]
     );
     await executeJS(unsignedTransactionData);
   } catch (err: any) {
@@ -474,19 +476,23 @@ const saveLogToSubgraph = async (
       lastLogSent.set(id, logs.length);
 
       const logsHashAll = await ipfsUpload(JSON.stringify(remainingLogs));
-
-      let uuidBytes = ethers.utils.toUtf8Bytes(id);
+      const hashedId = await ipfsUpload(id.replace(/-/g, ""));
 
       const unsignedTransactionDataAllLogs = await generateUnsignedData(
         "addLogToCircuit",
-        [instantiatorAddress, uuidBytes, `ipfs://${logsHashAll}`]
+        [
+          instantiatorAddress,
+          id.replace(/-/g, ""),
+          `ipfs://${logsHashAll}`,
+          `ipfs://${hashedId}`,
+        ]
       );
 
       await executeJS(unsignedTransactionDataAllLogs);
 
       const unsignedTransactionDataComplete = await generateUnsignedData(
         "completeCircuit",
-        [uuidBytes, instantiatorAddress]
+        [id.replace(/-/g, ""), `ipfs://${hashedId}`, instantiatorAddress]
       );
       await executeJS(unsignedTransactionDataComplete);
       // Delete from active circuits on complete
@@ -503,11 +509,16 @@ const saveLogToSubgraph = async (
         JSON.stringify(newCircuit.getLogs().slice(-10))
       );
 
-      let uuidBytes = ethers.utils.toUtf8Bytes(id);
+      const hashedId = await ipfsUpload(id.replace(/-/g, ""));
 
       const unsignedTransactionData = await generateUnsignedData(
         "addLogToCircuit",
-        [instantiatorAddress, uuidBytes, `ipfs://${logsHash}`]
+        [
+          instantiatorAddress,
+          id.replace(/-/g, ""),
+          `ipfs://${logsHash}`,
+          `ipfs://${hashedId}`,
+        ]
       );
       await executeJS(unsignedTransactionData);
       lastLogSent.set(id, logs.length);
@@ -522,17 +533,13 @@ const interruptCircuitRunning = async (
   instantiatorAddress: string
 ) => {
   try {
-    let uuidBytes = ethers.utils.toUtf8Bytes(id);
+    const hashedId = await ipfsUpload(id.replace(/-/g, ""));
     const unsignedTransactionData = await generateUnsignedData(
       "interruptCircuit",
-      [uuidBytes, instantiatorAddress]
+      [id.replace(/-/g, ""), `ipfs://${hashedId}`, instantiatorAddress]
     );
 
-    console.log("nterrupt");
-
     const results = await executeJS(unsignedTransactionData);
-
-    console.log("after execute");
 
     return { id, response: results.response };
   } catch (err: any) {
@@ -581,11 +588,12 @@ const connectLitClient = async () => {
 };
 
 const generateUnsignedData = async (functionName: string, args: any[]) => {
-  console.log({ args }, "inside unsigned data");
   let gasPrice: ethers.BigNumber, blockchainNonce: number;
   try {
     gasPrice = await providerDB.getGasPrice();
     blockchainNonce = await providerDB.getTransactionCount(PKP_ETH_ADDRESS);
+    blockchainNonce += pendingTransactionsCount;
+    pendingTransactionsCount++;
   } catch (err: any) {
     console.error(err.message);
   }
@@ -631,7 +639,7 @@ const createConditions = (
       );
       newConditions.push(webhookCondition);
     } else {
-      const webhookCondition = new ContractCondition(
+      const contractCondition = new ContractCondition(
         (conditions[i] as ContractCondition).contractAddress,
         (conditions[i] as ContractCondition).abi,
         (conditions[i] as ContractCondition).chainId,
@@ -641,7 +649,7 @@ const createConditions = (
         (conditions[i] as ContractCondition).expectedValue,
         (conditions[i] as ContractCondition).matchOperator
       );
-      newConditions.push(webhookCondition);
+      newConditions.push(contractCondition);
     }
   }
   return newConditions;
@@ -690,6 +698,7 @@ const broadCastToDB = async (
     const transactionHash = await providerDB.sendTransaction(serialized);
     await transactionHash.wait();
   } catch (err: any) {
+    pendingTransactionsCount--;
     console.error(err.message);
   }
 };
