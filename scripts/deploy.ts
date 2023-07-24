@@ -1,4 +1,4 @@
-import { ethers } from "hardhat";
+import { run } from "hardhat";
 
 const main = async () => {
   try {
@@ -58,17 +58,17 @@ const main = async () => {
 
     // const ListenerPayment = await ethers.getContractFactory("ListenerPayment");
     // const listenerPayment = await ListenerPayment.deploy(
-    //   "0x536806528cc5a745a84f43918512123ebe2199d0",
+    //   "0x62469116e84ccd1853864a97dfac08490192ba6c",
     //   "ListenerPayment",
     //   "LISTP"
     // );
     // const ListenerOracle = await ethers.getContractFactory("ListenerOracle");
     // const listenerOracle = await ListenerOracle.deploy(
-    //   "0x536806528cc5a745a84f43918512123ebe2199d0",
-    //   "0xce6C55cC7F35088371b22Dad73BF10491F23C002",
-    //   "0x566d63F1cC7f45Bfc9B2bdC785ffcc6F858F0997",
-    //   "0x984aB50e75d6FAE64cc1B4545C998409894D03e6",
-    //   "0xB4b634b4A080E92675378aa67f6b6BB5816E2f95",
+    //   "0x62469116e84ccd1853864a97dfac08490192ba6c",
+    //   "0x6968105460f67c3bf751be7c15f92f5286fd0ce5",
+    //   "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+    //   "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+    //   "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
     //   "LISTO",
     //   "ListenerOracle"
     // );
@@ -76,33 +76,33 @@ const main = async () => {
     //   "ListenerFulfillment"
     // );
     // const listenerFulfillment = await ListenerFulfillment.deploy(
-    //   "0x536806528cc5a745a84f43918512123ebe2199d0",
+    //   "0x62469116e84ccd1853864a97dfac08490192ba6c",
     //   "LISTF",
     //   "ListenerFulfillment"
     // );
     // const ListenerNFT = await ethers.getContractFactory("ListenerNFT");
     // const listenerNFT = await ListenerNFT.deploy(
-    //   "0x536806528cc5a745a84f43918512123ebe2199d0",
-    //   "0xA4bc96e23b9b97fb742dEE850d278254e57b2589"
+    //   "0x62469116e84ccd1853864a97dfac08490192ba6c",
+    //   "0x374551Baa42f590161a1FB2cA81E6b6D7b8DEe85"
     // );
     // const ListenerCollection = await ethers.getContractFactory(
     //   "ListenerCollection"
     // );
     // const listenerCollection = await ListenerCollection.deploy(
     //   listenerNFT.address,
-    //   "0x536806528cc5a745a84f43918512123ebe2199d0",
-    //   "0x5450D30F4898149D43DEbD171DbA9ddF40E0EB0C",
+    //   "0x62469116e84ccd1853864a97dfac08490192ba6c",
+    //   "0xEc93F36B780cA96C229cf89004e89ebA41C12A65",
     //   "ListenerCollection",
     //   "LISTC"
     // );
     // const ListenerMarket = await ethers.getContractFactory("ListenerMarket");
     // const listenerMarket = await ListenerMarket.deploy(
     //  listenerCollection.address,
-    //  "0x536806528cc5a745a84f43918512123ebe2199d0",
-    //  "0xA4bc96e23b9b97fb742dEE850d278254e57b2589",
-    //  "0x5450D30F4898149D43DEbD171DbA9ddF40E0EB0C",
+    //  "0x62469116e84ccd1853864a97dfac08490192ba6c",
+    //  "0x374551Baa42f590161a1FB2cA81E6b6D7b8DEe85",
+    //  "0xEc93F36B780cA96C229cf89004e89ebA41C12A65",
     //  listenerNFT.address,
-    //  "0x5104c0c5555C6Fd66313D895dB80a551f0A1b61A",
+    //  "0x0e92989B083b2eA0328EbA2db5c9ad3819e64794",
     //  "LISTM",
     //  "ListenerMarket"
     // );
@@ -128,85 +128,97 @@ const main = async () => {
     // });
 
     // await run(`verify:verify`, {
-    //   address: "0xd59474993543E947cAD20acB614e59828C36bA03",
+    //   address: "0x1C4C9cfa19733F27902A361492Ed9a7841AFC247",
     //   constructorArguments: [
     //     "LitActionDB",
     //     "LACTDB",
-    //     "0x536806528cc5a745a84f43918512123ebe2199d0",
+    //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
     //   ],
     // });
 
     // await run(`verify:verify`, {
-    //   address: "0x5450D30F4898149D43DEbD171DbA9ddF40E0EB0C",
+    //   address: "0xEc93F36B780cA96C229cf89004e89ebA41C12A65",
     //   constructorArguments: [
-    //     "0x536806528cc5a745a84f43918512123ebe2199d0",
+    //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
     //     "ListenerPayment",
     //     "LISTP",
     //   ],
     // });
 
     // await run(`verify:verify`, {
-    //   address: "0x5104c0c5555C6Fd66313D895dB80a551f0A1b61A",
+    //   address: "0x0e92989B083b2eA0328EbA2db5c9ad3819e64794",
     //   constructorArguments: [
-    //     "0x536806528cc5a745a84f43918512123ebe2199d0",
-    //     "0xce6C55cC7F35088371b22Dad73BF10491F23C002",
-    //     "0x566d63F1cC7f45Bfc9B2bdC785ffcc6F858F0997",
-    //     "0x984aB50e75d6FAE64cc1B4545C998409894D03e6",
-    //     "0xB4b634b4A080E92675378aa67f6b6BB5816E2f95",
+    //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
+    //     "0x6968105460f67c3bf751be7c15f92f5286fd0ce5",
+    //     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+    //     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+    //     "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
     //     "LISTO",
     //     "ListenerOracle",
     //   ],
     // });
 
     // await run(`verify:verify`, {
-    //   address: "0xA4bc96e23b9b97fb742dEE850d278254e57b2589",
+    //   address: "0x374551Baa42f590161a1FB2cA81E6b6D7b8DEe85",
     //   constructorArguments: [
-    //     "0x536806528cc5a745a84f43918512123ebe2199d0",
+    //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
     //     "LISTF",
     //     "ListenerFulfillment",
     //   ],
     // });
 
     // await run(`verify:verify`, {
-    //   address: "0xfff2Ad86092fF2f7a36a1B30504cbD9315Ee2009",
+    //   address: "0xE1d6aE6Aaf24cB6F037Ae6A3F3C90d82905186DC",
     //   constructorArguments: [
-    //     "0x536806528cc5a745a84f43918512123ebe2199d0",
-    //     "0xA4bc96e23b9b97fb742dEE850d278254e57b2589",
+    //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
+    //     "0x374551Baa42f590161a1FB2cA81E6b6D7b8DEe85",
     //   ],
     // });
 
     // await run(`verify:verify`, {
-    //   address: "0x4b946D61694450C239146d71E2AF5bb87a268ef4",
+    //   address: "0x28c5dc8B76fB12780393337416a6230978C1724A",
     //   constructorArguments: [
-    //     "0xfff2Ad86092fF2f7a36a1B30504cbD9315Ee2009",
-    //     "0x536806528cc5a745a84f43918512123ebe2199d0",
-    //     "0x5450D30F4898149D43DEbD171DbA9ddF40E0EB0C",
+    //     "0xE1d6aE6Aaf24cB6F037Ae6A3F3C90d82905186DC",
+    //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
+    //     "0xEc93F36B780cA96C229cf89004e89ebA41C12A65",
     //     "ListenerCollection",
     //     "LISTC",
     //   ],
     // });
 
     // await run(`verify:verify`, {
-    //   address: "0xe92d392E0a2bDB79863C2a900B93D5806566f775",
+    //   address: "0x2F4a5544E8436ced2EE71CD3FfF76Cb6DAf9cf6F",
     //   constructorArguments: [
-    //     "0x4b946D61694450C239146d71E2AF5bb87a268ef4",
-    //     "0x536806528cc5a745a84f43918512123ebe2199d0",
-    //     "0xA4bc96e23b9b97fb742dEE850d278254e57b2589",
-    //     "0x5450D30F4898149D43DEbD171DbA9ddF40E0EB0C",
-    //     "0xfff2Ad86092fF2f7a36a1B30504cbD9315Ee2009",
-    //     "0x5104c0c5555C6Fd66313D895dB80a551f0A1b61A",
+    //     "0x28c5dc8B76fB12780393337416a6230978C1724A",
+    //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
+    //     "0x374551Baa42f590161a1FB2cA81E6b6D7b8DEe85",
+    //     "0xEc93F36B780cA96C229cf89004e89ebA41C12A65",
+    //     "0xE1d6aE6Aaf24cB6F037Ae6A3F3C90d82905186DC",
+    //     "0x0e92989B083b2eA0328EbA2db5c9ad3819e64794",
     //     "LISTM",
     //     "ListenerMarket",
     //   ],
     // });
     // await run(`verify:verify`, {
-    //   address: "0xdaF18D056787d096670dD85372F10049e4805CF0",
+    //   address: "0x62469116e84ccd1853864a97dfac08490192ba6c",
     //   constructorArguments: [
     //     "ListenerAccessControl",
-    //     "LACCES",
-    //     "0x3D1f8A6D6584a1672d2817368783B9a2a36ae361",
+    //     "LAC",
+    //     "0xfa3fea500eeDAa120f7EeC2E4309Fe094F854E61",
     //   ],
     // });
+
+    await run(`verify:verify`, {
+      address: "0x94adbd035e5bc2959d9279143601a3686c1c3498",
+      constructorArguments: [
+        "ListenerDB",
+        "LDB",
+        "0x04998334943893c188d8d1eea643dad70ff4e23ff951871e92e722c9eab73386e5835a3c78e2d5a1c9310e274523a2c20729316b96c0bdade6f3d5bead6d760388",
+        "0x62469116e84ccd1853864a97dfac08490192ba6c",
+        "0xae415ded71ba8d23748df0f0113e2fbb8225ff10",
+        "8374444442989637949850150452393133218265193208246628247377315071840375026605",
+      ],
+    });
   } catch (err: any) {
     console.error(err.message);
   }
