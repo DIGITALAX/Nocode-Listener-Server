@@ -59,7 +59,6 @@ const providerDB = new ethers.providers.JsonRpcProvider(
   137
 );
 
-
 app.use(express.json());
 app.use(cors());
 
@@ -218,20 +217,39 @@ app.post("/start", async (req: Request, res: Response) => {
     idValue = id;
 
     // Save the circuit configuration to the database
-    await saveCircuitToSubgraph(
-      id,
-      tokenId,
-      publicKey,
-      address,
-      instantiatorAddress,
-      activeCircuits.get(id).ipfsHash,
-      {
-        circuitConditions: activeCircuits.get(id).circuitConditions,
-        circuitActions: activeCircuits.get(id).circuitActions,
-        conditionalLogic: activeCircuits.get(id).conditionalLogic,
-        executionConstraints: activeCircuits.get(id).executionConstraints,
+    try {
+      await saveCircuitToSubgraph(
+        id,
+        tokenId,
+        publicKey,
+        address,
+        instantiatorAddress,
+        activeCircuits.get(id).ipfsHash,
+        {
+          circuitConditions: activeCircuits.get(id).circuitConditions,
+          circuitActions: activeCircuits.get(id).circuitActions,
+          conditionalLogic: activeCircuits.get(id).conditionalLogic,
+          executionConstraints: activeCircuits.get(id).executionConstraints,
+        }
+      );
+    } catch (err: any) {
+      console.error(err.message);
+      const circuitToRemove = activeCircuits.get(idValue!);
+
+      if (circuitToRemove) {
+        circuitToRemove.newCircuit.off(
+          "log",
+          circuitEventListeners.get(idValue!)
+        );
+        activeCircuits.delete(idValue!);
+        circuitEventListeners.delete(idValue!);
+        lastLogSent.delete(idValue!);
       }
-    );
+
+      return res
+        .status(500)
+        .json({ message: `Error starting Circuit: ${err.message}` });
+    }
 
     const circuitEventListener = (logEntry: string) => {
       saveLogToSubgraph(
@@ -451,6 +469,7 @@ const saveCircuitToSubgraph = async (
       "addCircuitOnChain",
       [id.replace(/-/g, ""), `ipfs://${ipfsHash}`, instantiatorAddress]
     );
+    console.log({ unsignedTransactionData });
     await executeJS(unsignedTransactionData);
   } catch (err: any) {
     console.error(err.message);
@@ -573,6 +592,8 @@ const executeJS = async (unsignedTransactionData: {
       },
     });
 
+    console.log({ results });
+
     // Broadcast the signed transaction
     await broadCastToDB(results, unsignedTransactionData);
 
@@ -674,6 +695,7 @@ const broadCastToDB = async (
   }
 ): Promise<void> => {
   try {
+    console.log({ results });
     const signature = results?.signatures?.sig1;
     const sig: {
       r: string;
