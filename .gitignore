@@ -10,3 +10,8 @@ package-lock.json
 cache
 artifacts
 
+lit-listener
+test
+storage
+scripts
+contracts
