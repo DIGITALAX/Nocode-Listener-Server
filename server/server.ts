@@ -377,9 +377,9 @@ app.post("/interrupt", async (req: Request, res: Response) => {
 
 app.post("/connect", async (req: Request, res: Response) => {
   try {
-    if (authSig) {
-      return res.status(200).json({ message: `Lit Client Already Connected.` });
-    }
+    // if (authSig) {
+    //   return res.status(200).json({ message: `Lit Client Already Connected.` });
+    // }
     const { globalAuthSignature } = req.body;
     await connectLitClient();
 
