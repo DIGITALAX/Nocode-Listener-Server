@@ -71,6 +71,12 @@
       },
       {
         "indexed": false,
+        "internalType": "string",
+        "name": "hashedId",
+        "type": "string"
+      },
+      {
+        "indexed": false,
         "internalType": "address",
         "name": "instantiatorAddress",
         "type": "address"
@@ -86,6 +92,12 @@
         "indexed": true,
         "internalType": "string",
         "name": "circuitId",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "hashedId",
         "type": "string"
       },
       {
@@ -111,6 +123,12 @@
         "indexed": false,
         "internalType": "string",
         "name": "stringifiedLogs",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "hashedId",
         "type": "string"
       },
       {
@@ -187,6 +205,11 @@
         "internalType": "string",
         "name": "_stringifiedLogs",
         "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_hashedId",
+        "type": "string"
       }
     ],
     "name": "addLogToCircuit",
@@ -199,6 +222,11 @@
       {
         "internalType": "string",
         "name": "_circuitId",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_hashedId",
         "type": "string"
       },
       {
@@ -341,6 +369,11 @@
       {
         "internalType": "string",
         "name": "_circuitId",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_hashedId",
         "type": "string"
       },
       {

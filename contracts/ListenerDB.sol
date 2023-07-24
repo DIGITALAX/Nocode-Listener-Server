@@ -47,6 +47,7 @@ contract ListenerDB {
     event LogAdded(
         string indexed circuitId,
         string stringifiedLogs,
+        string hashedId,
         address instantiatorAddress
     );
 
@@ -58,11 +59,13 @@ contract ListenerDB {
 
     event CircuitInterrupted(
         string indexed circuitId,
+        string hashedId,
         address instantiatorAddress
     );
 
     event CircuitCompleted(
         string indexed circuitId,
+        string hashedId,
         address instantiatorAddress
     );
 
@@ -108,33 +111,41 @@ contract ListenerDB {
     function addLogToCircuit(
         address _instantiatorAddress,
         string memory _circuitId,
-        string memory _stringifiedLogs
+        string memory _stringifiedLogs,
+        string memory _hashedId
     ) external onlyPKP(msg.sender) {
         _addressIdToLogs[_instantiatorAddress][_circuitId].push(
             _stringifiedLogs
         );
 
-        emit LogAdded(_circuitId, _stringifiedLogs, _instantiatorAddress);
+        emit LogAdded(
+            _circuitId,
+            _stringifiedLogs,
+            _hashedId,
+            _instantiatorAddress
+        );
     }
 
     function interruptCircuit(
         string memory _circuitId,
+        string memory _hashedId,
         address _instantiatorAddress
     ) external onlyPKP(msg.sender) {
         _addressIdToCircuit[_instantiatorAddress][_circuitId]
             ._status = "interrupted";
 
-        emit CircuitInterrupted(_circuitId, _instantiatorAddress);
+        emit CircuitInterrupted(_circuitId, _hashedId, _instantiatorAddress);
     }
 
     function completeCircuit(
         string memory _circuitId,
+        string memory _hashedId,
         address _instantiatorAddress
     ) external onlyPKP(msg.sender) {
         _addressIdToCircuit[_instantiatorAddress][_circuitId]
             ._status = "completed";
 
-        emit CircuitCompleted(_circuitId, _instantiatorAddress);
+        emit CircuitCompleted(_circuitId, _hashedId, _instantiatorAddress);
     }
 
     function getPKPAssignedAddress() public view returns (address) {
