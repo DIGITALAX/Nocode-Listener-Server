@@ -34,5 +34,8 @@
   },
   "scripts": {
     "start": "ts-node --transpile-only server/server.ts"
+  },
+  "engines": {
+    "node": ">=16.19.1"
   }
 }
