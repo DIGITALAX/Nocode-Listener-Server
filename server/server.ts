@@ -4,6 +4,7 @@ import { joinSignature } from "@ethersproject/bytes";
 import { serialize } from "@ethersproject/transactions";
 import cors from "cors";
 import { config } from "dotenv";
+import { Mutex } from "async-mutex";
 import {
   Circuit,
   IConditionalLogic,
@@ -42,7 +43,6 @@ const wss = new WebSocket.Server({ server });
 const port = 3000;
 let clientSocket: WebSocket | null = null;
 let authSig: LitAuthSig;
-let pendingTransactionsCount = 0;
 const litClient = new LitJsSdk.LitNodeClient({
   litNetwork: "serrano",
   debug: true,
@@ -58,6 +58,104 @@ const providerDB = new ethers.providers.JsonRpcProvider(
   `https://polygon-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_POLYGON_KEY}`,
   137
 );
+
+interface PendingTransaction {
+  txData: any;
+  nonce: number;
+}
+
+class TxManager {
+  pendingTransactions: PendingTransaction[];
+  nonceCounter: number;
+  mutex: Mutex;
+
+  constructor() {
+    this.pendingTransactions = [];
+    this.nonceCounter = 0;
+    this.mutex = new Mutex();
+  }
+
+  async init() {
+    this.nonceCounter = await providerDB.getTransactionCount(PKP_ETH_ADDRESS);
+  }
+
+  async addPendingTransaction(txData: any) {
+    const release = await this.mutex.acquire();
+    try {
+      this.pendingTransactions.push({
+        txData,
+        nonce: this.nonceCounter,
+      });
+      this.nonceCounter += 1;
+    } finally {
+      release();
+    }
+  }
+
+  async removePendingTransaction(nonce: number) {
+    const release = await this.mutex.acquire();
+    try {
+      this.pendingTransactions = this.pendingTransactions.filter(
+        (tx) => tx.nonce !== nonce
+      );
+      if (this.pendingTransactions.length === 0) {
+        this.nonceCounter = await providerDB.getTransactionCount(
+          PKP_ETH_ADDRESS
+        );
+      }
+    } finally {
+      release();
+    }
+  }
+
+  async handleFailedTransaction(failedTxNonce: number) {
+    const release = await this.mutex.acquire();
+    let updatedTransactions: PendingTransaction[] = [];
+    try {
+      this.pendingTransactions = this.pendingTransactions.filter(
+        (tx) => tx.nonce !== failedTxNonce
+      );
+      this.nonceCounter =
+        this.pendingTransactions.length > 0
+          ? Math.max(...this.pendingTransactions.map((tx) => tx.nonce)) + 1
+          : await providerDB.getTransactionCount(PKP_ETH_ADDRESS);
+
+      for (let tx of this.pendingTransactions) {
+        if (tx.nonce > failedTxNonce) {
+          tx.nonce -= 1;
+          const newTxData = await generateUnsignedData(
+            tx.txData.functionName,
+            tx.txData.args
+          );
+          tx.txData = newTxData;
+          try {
+            const success = await executeJS(newTxData, true);
+            if (success) {
+              updatedTransactions.push(tx);
+            }
+          } catch (err: any) {
+            console.log(
+              `Error resending transaction with nonce ${tx.nonce}: ${err.message}`
+            );
+          }
+        } else {
+          // keep transactions that had lower nonce than the failed one
+          updatedTransactions.push(tx);
+        }
+      }
+      this.pendingTransactions = updatedTransactions;
+      this.nonceCounter =
+        this.pendingTransactions.length > 0
+          ? Math.max(...this.pendingTransactions.map((tx) => tx.nonce)) + 1
+          : await providerDB.getTransactionCount(PKP_ETH_ADDRESS);
+    } finally {
+      release();
+    }
+  }
+}
+
+const txManager = new TxManager();
+txManager.init();
 
 app.use(express.json());
 app.use(cors());
@@ -233,7 +331,7 @@ app.post("/start", async (req: Request, res: Response) => {
         }
       );
     } catch (err: any) {
-      console.error(err.message);
+      console.log(err.message);
       const circuitToRemove = activeCircuits.get(idValue!);
 
       if (circuitToRemove) {
@@ -425,7 +523,7 @@ const addCircuitLogic = async (
 
     return { id, ipfsCID, unsignedTransactionDataObject };
   } catch (err: any) {
-    console.error(err.message);
+    console.log(err.message);
   }
 };
 
@@ -469,9 +567,10 @@ const saveCircuitToSubgraph = async (
       "addCircuitOnChain",
       [id.replace(/-/g, ""), `ipfs://${ipfsHash}`, instantiatorAddress]
     );
-    await executeJS(unsignedTransactionData);
+    await txManager.addPendingTransaction(unsignedTransactionData);
+    await executeJS(unsignedTransactionData, false);
   } catch (err: any) {
-    console.error(err.message);
+    console.log(err.message);
   }
 };
 
@@ -481,7 +580,7 @@ const saveLogToSubgraph = async (
   instantiatorAddress: string,
   newCircuit: Circuit
 ) => {
-  console.log({logEntry})
+  console.log({ logEntry });
   try {
     const logs = newCircuit.getLogs();
     let logEntryParsed: {
@@ -509,18 +608,18 @@ const saveLogToSubgraph = async (
           `ipfs://${hashedId}`,
         ]
       );
+      await txManager.addPendingTransaction(unsignedTransactionDataAllLogs);
+      console.log({ unsignedTransactionDataAllLogs });
 
-      console.log({unsignedTransactionDataAllLogs})
-
-      await executeJS(unsignedTransactionDataAllLogs);
+      await executeJS(unsignedTransactionDataAllLogs, false);
 
       const unsignedTransactionDataComplete = await generateUnsignedData(
         "completeCircuit",
         [id.replace(/-/g, ""), `ipfs://${hashedId}`, instantiatorAddress]
       );
-
-      console.log({unsignedTransactionDataComplete})
-      await executeJS(unsignedTransactionDataComplete);
+      await txManager.addPendingTransaction(unsignedTransactionDataComplete);
+      console.log({ unsignedTransactionDataComplete });
+      await executeJS(unsignedTransactionDataComplete, false);
       // Delete from active circuits on complete
       const circuitToRemove = activeCircuits.get(id);
 
@@ -546,12 +645,13 @@ const saveLogToSubgraph = async (
           `ipfs://${hashedId}`,
         ]
       );
-      console.log({unsignedTransactionData})
-      await executeJS(unsignedTransactionData);
+      await txManager.addPendingTransaction(unsignedTransactionData);
+      console.log({ unsignedTransactionData });
+      await executeJS(unsignedTransactionData, false);
       lastLogSent.set(id, logs.length);
     }
   } catch (err: any) {
-    console.error(err.message);
+    console.log(err.message);
   }
 };
 
@@ -565,52 +665,71 @@ const interruptCircuitRunning = async (
       "interruptCircuit",
       [id.replace(/-/g, ""), `ipfs://${hashedId}`, instantiatorAddress]
     );
+    await txManager.addPendingTransaction(unsignedTransactionData);
 
-    const results = await executeJS(unsignedTransactionData);
+    const results = await executeJS(unsignedTransactionData, false);
 
     return { id, response: results.response };
   } catch (err: any) {
-    console.error(err.message);
+    console.log(err.message);
   }
 };
 
-const executeJS = async (unsignedTransactionData: {
-  to: `0x${string}`;
-  nonce: number;
-  chainId: number;
-  gasLimit: string;
-  maxFeePerGas: ethers.BigNumber;
-  maxPriorityFeePerGas: ethers.BigNumber;
-  from: string;
-  data: string;
-  value: number;
-  type: number;
-}): Promise<any> => {
-  try {
-    const results = await litClient.executeJs({
-      ipfsId: "QmSrk1TqfTPSiqEPyfbReZPAwfnQQw7Ai9jfPqbQQ8sndR",
-      code: undefined,
-      authSig,
-      jsParams: {
-        publicKey: PKP_PUBLIC_KEY,
-        unsignedTransactionData,
-      },
-    });
-
-    // Broadcast the signed transaction
-    await broadCastToDB(results, unsignedTransactionData);
-
-    return { results };
-  } catch (err: any) {
-    console.error(err.message);
-  }
+const executeJS = async (
+  unsignedTransactionData: {
+    to: `0x${string}`;
+    nonce: number;
+    chainId: number;
+    gasLimit: string;
+    maxFeePerGas: ethers.BigNumber;
+    maxPriorityFeePerGas: ethers.BigNumber;
+    from: string;
+    data: string;
+    value: number;
+    type: number;
+  },
+  onFailure: boolean
+): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    litClient
+      .executeJs({
+        ipfsId: "QmSrk1TqfTPSiqEPyfbReZPAwfnQQw7Ai9jfPqbQQ8sndR",
+        code: undefined,
+        authSig,
+        jsParams: {
+          publicKey: PKP_PUBLIC_KEY,
+          unsignedTransactionData,
+        },
+      })
+      .then(async (results) => {
+        // Broadcast the signed transaction
+        await broadCastToDB(results, unsignedTransactionData);
+        if (!onFailure) {
+          await txManager.removePendingTransaction(
+            unsignedTransactionData.nonce
+          );
+        } else {
+          return true;
+        }
+        resolve({ results });
+      })
+      .catch((err) => {
+        console.log(err.message);
+        if (!onFailure) {
+          txManager.handleFailedTransaction(unsignedTransactionData.nonce);
+        } else {
+          return false;
+        }
+        resolve({ results: err });
+      });
+  });
 };
 
 const connectLitClient = async () => {
   try {
     await litClient.connect();
   } catch (err: any) {
-    console.error(err.message);
+    console.log(err.message);
   }
 };
 
@@ -618,14 +737,12 @@ const generateUnsignedData = async (functionName: string, args: any[]) => {
   let gasPrice: ethers.BigNumber, blockchainNonce: number;
   try {
     gasPrice = await providerDB.getGasPrice();
-    blockchainNonce = await providerDB.getTransactionCount(PKP_ETH_ADDRESS);
-    blockchainNonce += pendingTransactionsCount;
-    pendingTransactionsCount++;
+    blockchainNonce = txManager.nonceCounter;
   } catch (err: any) {
-    console.error(err.message);
+    console.log(err.message);
   }
 
-  return {
+  const unsignedData = {
     to: LISTENER_DB_ADDRESS,
     nonce: blockchainNonce!,
     chainId: 137,
@@ -637,6 +754,8 @@ const generateUnsignedData = async (functionName: string, args: any[]) => {
     value: 0,
     type: 2,
   };
+
+  return unsignedData;
 };
 
 const ipfsUpload = async (stringItem: string): Promise<string | undefined> => {
@@ -644,7 +763,7 @@ const ipfsUpload = async (stringItem: string): Promise<string | undefined> => {
     const added = await client.add(stringItem);
     return added.path;
   } catch (err: any) {
-    console.error(err.message);
+    console.log(err.message);
   }
 };
 
@@ -726,8 +845,7 @@ const broadCastToDB = async (
     const transactionHash = await providerDB.sendTransaction(serialized);
     await transactionHash.wait();
   } catch (err: any) {
-    pendingTransactionsCount--;
-    console.error(err.message);
+    console.log(err.message);
   }
 };
 
@@ -797,13 +915,13 @@ const interruptAllCircuits = async () => {
   }
 };
 process.on("uncaughtException", async (err) => {
-  console.error("Uncaught exception", err);
+  console.log("Uncaught exception", err);
   await interruptAllCircuits();
   process.exit(1);
 });
 
 process.on("unhandledRejection", async (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  console.log("Unhandled Rejection at:", promise, "reason:", reason);
   await interruptAllCircuits();
   process.exit(1);
 });
@@ -813,3 +931,15 @@ process.on("SIGTERM", async () => {
   await interruptAllCircuits();
   process.exit(0);
 });
+
+
+const logVariables = async () => {
+  const someVariable = "Hello, World!";
+  console.log(someVariable);
+}
+
+logVariables();
+
+const intervalInMilliseconds = 60 * 60 * 1000;
+
+setInterval(logVariables, intervalInMilliseconds);
