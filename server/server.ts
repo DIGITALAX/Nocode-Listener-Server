@@ -932,11 +932,10 @@ process.on("SIGTERM", async () => {
   process.exit(0);
 });
 
-
 const logVariables = async () => {
-  const someVariable = "Hello, World!";
-  console.log(someVariable);
-}
+  console.log("CircuitSize: ", activeCircuits.size, "\n\n");
+  console.log("Nonce Count: ", txManager.nonceCounter, "\n\n");
+};
 
 logVariables();
 
