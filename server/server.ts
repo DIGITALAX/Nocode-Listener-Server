@@ -492,6 +492,10 @@ app.post("/connect", async (req: Request, res: Response) => {
   }
 });
 
+app.get("/ping", function (req, res) {
+  res.status(200).json({ message: "Server is awake!" });
+});
+
 server.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 });
@@ -935,22 +939,17 @@ process.on("SIGTERM", async () => {
 const logVariables = async () => {
   console.log("CircuitSize: ", activeCircuits.size, "\n\n");
   console.log("Nonce Count: ", txManager.nonceCounter, "\n\n");
-  const serializedCircuits = Array.from(
-    activeCircuits,
-    (circuit: any) => {
-      return JSON.stringify({
-        circuitConditions: JSON.stringify(circuit.circuitConditions),
-        circuitActions: JSON.stringify(circuit.circuitActions),
-        conditionalLogic: JSON.stringify(circuit.conditionalLogic),
-        instantiatorAddress: circuit.instantiatorAddress,
-        executionConstraints: JSON.stringify(circuit.executionConstraints),
-        unsignedTransactionData: JSON.stringify(
-          circuit.unsignedTransactionData
-        ),
-        ipfsHash: JSON.stringify(circuit.ipfsHash),
-      });
-    }
-  );
+  const serializedCircuits = Array.from(activeCircuits, (circuit: any) => {
+    return JSON.stringify({
+      circuitConditions: JSON.stringify(circuit.circuitConditions),
+      circuitActions: JSON.stringify(circuit.circuitActions),
+      conditionalLogic: JSON.stringify(circuit.conditionalLogic),
+      instantiatorAddress: circuit.instantiatorAddress,
+      executionConstraints: JSON.stringify(circuit.executionConstraints),
+      unsignedTransactionData: JSON.stringify(circuit.unsignedTransactionData),
+      ipfsHash: JSON.stringify(circuit.ipfsHash),
+    });
+  });
   const ipfsCID = await ipfsUpload(JSON.stringify(serializedCircuits));
   console.log({ ipfsCID });
   console.log("\n\n");
