@@ -118,22 +118,22 @@ contract ListenerMarket {
         address buyer
     );
 
-    event OrderIsFulfilled(uint256 indexed _orderId, address _fulfillerAddress);
+    event OrderIsFulfilled(uint256 indexed orderId, address fulfillerAddress);
 
     event OrderCreated(
-        uint256 indexed orderId,
+        uint256[] orderIds,
+        uint256[] prices,
         uint256 totalPrice,
         address buyer,
-        string fulfillmentInformation,
-        uint256 fulfillerId
+        string fulfillmentInformation
     );
     event UpdateOrderDetails(
-        uint256 indexed _orderId,
+        uint256 indexed orderId,
         string newOrderDetails,
         address buyer
     );
     event UpdateOrderStatus(
-        uint256 indexed _orderId,
+        uint256 indexed orderId,
         string newOrderStatus,
         address buyer
     );
@@ -176,6 +176,8 @@ contract ListenerMarket {
             params.chosenTokenAddress
         );
 
+        uint256[] memory _orderIds = new uint256[](params.listenerIds.length);
+
         for (uint256 i = 0; i < params.listenerIds.length; i++) {
             (uint256 price, uint256 fulfillerId) = _listenerCollectionMint(
                 params.listenerIds[i],
@@ -214,7 +216,7 @@ contract ListenerMarket {
 
             _listenerTokenIdsSold[params.listenerIds[i]] = _tokenIds;
 
-            _createOrder(
+            uint256 orderId = _createOrder(
                 params.chosenTokenAddress,
                 msg.sender,
                 price * params.listenerAmounts[i],
@@ -222,7 +224,23 @@ contract ListenerMarket {
                 _tokenIds[_tokenIds.length - 1],
                 params.fulfillmentDetails
             );
+
+            _orderIds[i] = (orderId);
         }
+
+        uint256 _totalPrice = 0;
+
+        for (uint256 i = 0; i < _prices.length; i++) {
+            _totalPrice += _prices[i];
+        }
+
+        emit OrderCreated(
+            _orderIds,
+            _prices,
+            _totalPrice,
+            msg.sender,
+            params.fulfillmentDetails
+        );
 
         emit TokensBought(
             params.listenerIds,
@@ -241,7 +259,7 @@ contract ListenerMarket {
         uint256 _fulfillerId,
         uint256 _tokenId,
         string memory _fulfillmentDetails
-    ) internal {
+    ) internal returns (uint256) {
         _orderSupply++;
 
         Order memory newOrder = Order({
@@ -259,13 +277,7 @@ contract ListenerMarket {
 
         _orders[_orderSupply] = newOrder;
 
-        emit OrderCreated(
-            _orderSupply,
-            _price,
-            _buyer,
-            _fulfillmentDetails,
-            _fulfillerId
-        );
+        return _orderSupply;
     }
 
     function _transferTokens(
