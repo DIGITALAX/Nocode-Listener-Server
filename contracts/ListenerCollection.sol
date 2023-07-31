@@ -284,6 +284,7 @@ contract ListenerCollection {
     function _mintNFT(
         Collection memory _collection,
         uint256 _amount,
+        uint256 _collectionId,
         address _creatorAddress,
         address _purchaserAddress,
         address _acceptedToken
@@ -301,7 +302,7 @@ contract ListenerCollection {
         _listenerNFT.mintBatch(
             paramsNFT,
             _amount,
-            _collectionSupply,
+            _collectionId,
             _creatorAddress,
             _purchaserAddress,
             _acceptedToken
@@ -336,6 +337,7 @@ contract ListenerCollection {
         _mintNFT(
             _collections[_collectionId],
             _amount,
+            _collectionId,
             collection.creator,
             _purchaserAddress,
             _acceptedToken

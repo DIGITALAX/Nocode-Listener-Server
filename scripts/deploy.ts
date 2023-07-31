@@ -83,7 +83,7 @@ const main = async () => {
     // const ListenerNFT = await ethers.getContractFactory("ListenerNFT");
     // const listenerNFT = await ListenerNFT.deploy(
     //   "0x62469116e84ccd1853864a97dfac08490192ba6c",
-    //   "0x374551Baa42f590161a1FB2cA81E6b6D7b8DEe85"
+    //   "0x5EEa8a033aC23926c8674d1a89b855C80767f6bd"
     // );
     // const ListenerCollection = await ethers.getContractFactory(
     //   "ListenerCollection"
@@ -97,14 +97,14 @@ const main = async () => {
     // );
     // const ListenerMarket = await ethers.getContractFactory("ListenerMarket");
     // const listenerMarket = await ListenerMarket.deploy(
-    //  listenerCollection.address,
-    //  "0x62469116e84ccd1853864a97dfac08490192ba6c",
-    //  "0x374551Baa42f590161a1FB2cA81E6b6D7b8DEe85",
-    //  "0xEc93F36B780cA96C229cf89004e89ebA41C12A65",
-    //  listenerNFT.address,
-    //  "0x0e92989B083b2eA0328EbA2db5c9ad3819e64794",
-    //  "LISTM",
-    //  "ListenerMarket"
+    //   listenerCollection.address,
+    //   "0x62469116e84ccd1853864a97dfac08490192ba6c",
+    //   "0x5EEa8a033aC23926c8674d1a89b855C80767f6bd",
+    //   "0xEc93F36B780cA96C229cf89004e89ebA41C12A65",
+    //   listenerNFT.address,
+    //   "0x0e92989B083b2eA0328EbA2db5c9ad3819e64794",
+    //   "LISTM",
+    //   "ListenerMarket"
     // );
 
     // listenerPayment.deployTransaction.wait(WAIT_BLOCK_CONFIRMATIONS);
@@ -159,7 +159,7 @@ const main = async () => {
     // });
 
     // await run(`verify:verify`, {
-    //   address: "0x374551Baa42f590161a1FB2cA81E6b6D7b8DEe85",
+    //   address: "0x5EEa8a033aC23926c8674d1a89b855C80767f6bd",
     //   constructorArguments: [
     //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
     //     "LISTF",
@@ -167,38 +167,38 @@ const main = async () => {
     //   ],
     // });
 
-    // await run(`verify:verify`, {
-    //   address: "0xE1d6aE6Aaf24cB6F037Ae6A3F3C90d82905186DC",
-    //   constructorArguments: [
-    //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
-    //     "0x374551Baa42f590161a1FB2cA81E6b6D7b8DEe85",
-    //   ],
-    // });
+    await run(`verify:verify`, {
+      address: "0x86d1cee7dc74d65d70ad33ede56c26d7507dc079",
+      constructorArguments: [
+        "0x62469116e84ccd1853864a97dfac08490192ba6c",
+        "0x5EEa8a033aC23926c8674d1a89b855C80767f6bd",
+      ],
+    });
 
-    // await run(`verify:verify`, {
-    //   address: "0x28c5dc8B76fB12780393337416a6230978C1724A",
-    //   constructorArguments: [
-    //     "0xE1d6aE6Aaf24cB6F037Ae6A3F3C90d82905186DC",
-    //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
-    //     "0xEc93F36B780cA96C229cf89004e89ebA41C12A65",
-    //     "ListenerCollection",
-    //     "LISTC",
-    //   ],
-    // });
+    await run(`verify:verify`, {
+      address: "0x132D5582905Ff2a0196796C967837e12E81a068C",
+      constructorArguments: [
+        "0x86d1cEe7dC74d65D70Ad33Ede56c26D7507DC079",
+        "0x62469116e84ccd1853864a97dfac08490192ba6c",
+        "0xEc93F36B780cA96C229cf89004e89ebA41C12A65",
+        "ListenerCollection",
+        "LISTC",
+      ],
+    });
 
-    // await run(`verify:verify`, {
-    //   address: "0x2F4a5544E8436ced2EE71CD3FfF76Cb6DAf9cf6F",
-    //   constructorArguments: [
-    //     "0x28c5dc8B76fB12780393337416a6230978C1724A",
-    //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
-    //     "0x374551Baa42f590161a1FB2cA81E6b6D7b8DEe85",
-    //     "0xEc93F36B780cA96C229cf89004e89ebA41C12A65",
-    //     "0xE1d6aE6Aaf24cB6F037Ae6A3F3C90d82905186DC",
-    //     "0x0e92989B083b2eA0328EbA2db5c9ad3819e64794",
-    //     "LISTM",
-    //     "ListenerMarket",
-    //   ],
-    // });
+    await run(`verify:verify`, {
+      address: "0x9300De7b8e1b4Cf443896d596853a34CcAe48f88",
+      constructorArguments: [
+        "0x132D5582905Ff2a0196796C967837e12E81a068C",
+        "0x62469116e84ccd1853864a97dfac08490192ba6c",
+        "0x5EEa8a033aC23926c8674d1a89b855C80767f6bd",
+        "0xEc93F36B780cA96C229cf89004e89ebA41C12A65",
+        "0x86d1cEe7dC74d65D70Ad33Ede56c26D7507DC079",
+        "0x0e92989B083b2eA0328EbA2db5c9ad3819e64794",
+        "LISTM",
+        "ListenerMarket",
+      ],
+    });
     // await run(`verify:verify`, {
     //   address: "0x62469116e84ccd1853864a97dfac08490192ba6c",
     //   constructorArguments: [
@@ -208,17 +208,17 @@ const main = async () => {
     //   ],
     // });
 
-    await run(`verify:verify`, {
-      address: "0x94adbd035e5bc2959d9279143601a3686c1c3498",
-      constructorArguments: [
-        "ListenerDB",
-        "LDB",
-        "0x04998334943893c188d8d1eea643dad70ff4e23ff951871e92e722c9eab73386e5835a3c78e2d5a1c9310e274523a2c20729316b96c0bdade6f3d5bead6d760388",
-        "0x62469116e84ccd1853864a97dfac08490192ba6c",
-        "0xae415ded71ba8d23748df0f0113e2fbb8225ff10",
-        "8374444442989637949850150452393133218265193208246628247377315071840375026605",
-      ],
-    });
+    // await run(`verify:verify`, {
+    //   address: "0x94adbd035e5bc2959d9279143601a3686c1c3498",
+    //   constructorArguments: [
+    //     "ListenerDB",
+    //     "LDB",
+    //     "0x04998334943893c188d8d1eea643dad70ff4e23ff951871e92e722c9eab73386e5835a3c78e2d5a1c9310e274523a2c20729316b96c0bdade6f3d5bead6d760388",
+    //     "0x62469116e84ccd1853864a97dfac08490192ba6c",
+    //     "0xae415ded71ba8d23748df0f0113e2fbb8225ff10",
+    //     "8374444442989637949850150452393133218265193208246628247377315071840375026605",
+    //   ],
+    // });
   } catch (err: any) {
     console.error(err.message);
   }
