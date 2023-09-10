@@ -307,6 +307,12 @@ app.post("/start", async (req: Request, res: Response) => {
       address: string;
     } = req.body;
 
+    // set lit client
+    await connectLitClient();
+
+    // set auth signature
+    authSig = authSignature;
+
     if (!activeCircuits.has(id)) {
       return res
         .status(404)
@@ -478,13 +484,11 @@ app.post("/connect", async (req: Request, res: Response) => {
     // if (authSig) {
     //   return res.status(200).json({ message: `Lit Client Already Connected.` });
     // }
-    const { globalAuthSignature } = req.body;
-    await connectLitClient();
-
-    // set auth signature
-    authSig = globalAuthSignature;
-
-    return res.status(200).json({ message: `Lit Client Connected` });
+    // const { globalAuthSignature } = req.body;
+    // await connectLitClient();
+    // // set auth signature
+    // authSig = globalAuthSignature;
+    // return res.status(200).json({ message: `Lit Client Connected` });
   } catch (err: any) {
     return res.json({
       message: `Error connecting to Lit Client: ${err.message}`,
