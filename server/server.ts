@@ -22,8 +22,6 @@ import {
   CONTRACT_INTERFACE,
   IPFS_AUTH,
   LISTENER_DB_ADDRESS,
-  PKP_ETH_ADDRESS,
-  PKP_PUBLIC_KEY,
 } from "./constants";
 import { LitAuthSig } from "./types";
 import WebSocket from "ws";
@@ -76,7 +74,9 @@ class TxManager {
   }
 
   async init() {
-    this.nonceCounter = await providerDB.getTransactionCount(PKP_ETH_ADDRESS);
+    this.nonceCounter = await providerDB.getTransactionCount(
+      process.env.PKP_ETH_ADDRESS!
+    );
   }
 
   async addPendingTransaction(txData: any) {
@@ -100,7 +100,7 @@ class TxManager {
       );
       if (this.pendingTransactions.length === 0) {
         this.nonceCounter = await providerDB.getTransactionCount(
-          PKP_ETH_ADDRESS
+          process.env.PKP_ETH_ADDRESS!
         );
       }
     } finally {
@@ -118,7 +118,7 @@ class TxManager {
       this.nonceCounter =
         this.pendingTransactions.length > 0
           ? Math.max(...this.pendingTransactions.map((tx) => tx.nonce)) + 1
-          : await providerDB.getTransactionCount(PKP_ETH_ADDRESS);
+          : await providerDB.getTransactionCount(process.env.PKP_ETH_ADDRESS!);
 
       for (let tx of this.pendingTransactions) {
         if (tx.nonce > failedTxNonce) {
@@ -147,7 +147,7 @@ class TxManager {
       this.nonceCounter =
         this.pendingTransactions.length > 0
           ? Math.max(...this.pendingTransactions.map((tx) => tx.nonce)) + 1
-          : await providerDB.getTransactionCount(PKP_ETH_ADDRESS);
+          : await providerDB.getTransactionCount(process.env.PKP_ETH_ADDRESS!);
     } finally {
       release();
     }
@@ -705,7 +705,7 @@ const executeJS = async (
         code: undefined,
         authSig,
         jsParams: {
-          publicKey: PKP_PUBLIC_KEY,
+          publicKey: process.env.PKP_PUBLIC_KEY,
           unsignedTransactionData,
         },
       })
