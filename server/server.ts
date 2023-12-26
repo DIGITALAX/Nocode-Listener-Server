@@ -42,7 +42,7 @@ const port = 3000;
 let clientSocket: WebSocket | null = null;
 let authSig: LitAuthSig;
 const litClient = new LitJsSdk.LitNodeClient({
-  litNetwork: "cayenne",
+  litNetwork: "serrano",
   debug: true,
 });
 // Create an IPFS client instance
